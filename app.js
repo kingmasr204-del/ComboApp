@@ -6,6 +6,7 @@ let session=null, me=null, activeChat=null, pinMode=null, messageChannel=null, p
 let peer=null, localStream=null, activeCall=null, callChannels=new Map(), pendingIce=[];
 const $=id=>document.getElementById(id);
 const APP_ORIGIN = window.location.origin;
+const APP_BASE_URL = new URL('./', window.location.href).href;
 
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show"),2800)}
 function initials(name="C"){return name.trim().slice(0,1).toUpperCase()||"C"}
@@ -69,7 +70,7 @@ async function signup(){
   if(!/^[a-z0-9_\.]{3,24}$/.test(username))return toast("اسم المستخدم: حروف إنجليزية وأرقام و _ فقط");
   if(p.length<6)return toast("كلمة السر لازم تكون 6 أحرف على الأقل");
   if(p!==p2)return toast("تأكيد كلمة السر غير مطابق");
-  const {data,error}=await sb.auth.signUp({email,password:p,options:{data:{display_name:name,username}}});
+  const {data,error}=await sb.auth.signUp({email,password:p,options:{emailRedirectTo:APP_BASE_URL,data:{display_name:name,username}}});
   if(error)return toast(error.message.includes("already")?"البريد مستخدم بالفعل":error.message);
   $("signupPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden");
   toast(data.session?"تم إنشاء الحساب":"تم إنشاء الحساب. افتح رسالة تأكيد البريد ثم سجّل الدخول.");
