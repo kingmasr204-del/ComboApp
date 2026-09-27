@@ -1,0 +1,36 @@
+COMBOAPP EMAIL SETUP
+====================
+
+1) Supabase Dashboard > Authentication > Email Templates > Reset Password
+2) Replace the template body with the HTML below.
+3) Do the same for Confirm Signup, changing the button URL to {{ .ConfirmationURL }}.
+4) Host logo.png on your HTTPS app domain and replace LOGO_URL.
+
+RESET PASSWORD HTML
+-------------------
+<div style="font-family:Arial,sans-serif;background:#061318;padding:32px;color:#fff;text-align:center">
+  <div style="max-width:520px;margin:auto;background:#071820;border:1px solid #12333a;border-radius:24px;padding:28px">
+    <img src="LOGO_URL" width="96" height="96" style="border-radius:24px" alt="ComboApp">
+    <h1 style="margin:18px 0 8px;color:#00e8b2">ComboApp</h1>
+    <p style="color:#c6d8d5">طلبنا تغيير كلمة السر لحسابك.</p>
+    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#00e8b2;color:#00140f;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:14px;margin:18px">تغيير كلمة السر</a>
+    <p style="font-size:12px;color:#8da7a5">لو أنت ما طلبتش التغيير، تجاهل الرسالة.</p>
+  </div>
+</div>
+
+CONFIRM SIGNUP HTML
+-------------------
+<div style="font-family:Arial,sans-serif;background:#061318;padding:32px;color:#fff;text-align:center">
+  <div style="max-width:520px;margin:auto;background:#071820;border:1px solid #12333a;border-radius:24px;padding:28px">
+    <img src="LOGO_URL" width="96" height="96" style="border-radius:24px" alt="ComboApp">
+    <h1 style="margin:18px 0 8px;color:#00e8b2">أهلاً بيك في ComboApp</h1>
+    <p style="color:#c6d8d5">اضغط الزر لتأكيد بريدك الإلكتروني.</p>
+    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#00e8b2;color:#00140f;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:14px;margin:18px">تأكيد البريد</a>
+  </div>
+</div>
+
+CUSTOM SENDER
+-------------
+The visible sender name "ComboApp" is controlled by your SMTP provider, not JavaScript.
+In Supabase: Authentication > SMTP Settings, enter your provider SMTP host/user/password and set the sender name/email to ComboApp.
+Never put SMTP passwords or API secrets inside app.js.
