@@ -280,8 +280,8 @@ async function handleChatFile(e){
 const COMBO_EMOJIS='😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫡 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 👍 👎 👌 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 🤏 💪 🙏 👏 🙌 🫶 👀 👄 💋 🔥 ⭐ 🌟 ✨ 💫 💥 🎉 🎊 🎈 🎁 👑 💎 🚀 ⚡ 💯 😂 😍 🤍 💚'.split(' ');
 function toggleEmoji(){$('emojiPanel').classList.toggle('hidden');if(!$('emojiPanel').classList.contains('hidden'))showEmojiTab('emoji')}
 const COMBO_EMOJI_CATS={smileys:'😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫡 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃',people:'👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 👃 🧠 🫀 🫁 👀 👁️ 👅 👄 💋 ❤️‍🔥 💕 💞 💓 💗 💖 💘 💝 💟',animals:'🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪲 🐛 🦋 🐌 🐞 🐜 🕷️ 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦀 🐠 🐟 🐡 🐬 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🦍 🐘 🦏 🦒 🦘 🦬 🐪 🐫 🦙 🐐 🐑 🐏 🐕 🐈 🐓 🦃 🕊️ 🐇 🐿️ 🦔',food:'🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍞 🥐 🥖 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🥙 🧆 🌮 🌯 🥗 🍝 🍜 🍲 🍛 🍣 🍤 🍚 🍙 🍘 🍥 🥠 🥮 🍰 🎂 🧁 🍩 🍪 🍫 🍬 🍭 ☕ 🧃 🥤 🧋 🍺 🍻 🍷 🍸 🍹 🥂',activities:'⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🪁 🏓 🏸 🏒 🥍 🏏 ⛳ 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖️ 🎗️ 🎫 🎟️ 🎪 🎭 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🪕 🎻',travel:'🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍️ 🚲 🛴 🚨 🚔 🚍 🚘 🚖 ✈️ 🛫 🛬 🛩️ 🚀 🛸 🚁 🛶 ⛵ 🚤 🛥️ 🚢 ⚓ 🗺️ 🗿 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ 🏖️ 🏝️ 🏜️ 🌋 🗻 🏕️ ⛺ 🏠 🏡 🏢 🏥 🏦 🏨 🏪 🏫',objects:'⌚ 📱 💻 ⌨️ 🖥️ 🖨️ 🖱️ 💾 💿 📷 📸 📹 🎥 📺 📻 🎙️ 🔍 🔎 💡 🔦 🕯️ 🧯 🛒 💰 💳 💎 ⚖️ 🔑 🔒 🔓 🔨 🪛 🔧 🪚 🧰 🧲 🔬 🔭 📡 💉 💊 🚪 🛏️ 🛋️ 🚿 🧴 🧹 🧺 🧻 🧼 🪥 🧽 🪣 🧸 🪆 🎁 🎈 🎉 🎊 ✉️ 📩 📦 📝 📚 📖 🔖 🗂️ 📅 📌 📍 ✂️ 🖊️ ✏️ 📎',symbols:'❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ✨ ⭐ 🌟 💫 ⚡ 🔥 💥 💯 ❗ ❓ ⁉️ ‼️ ❌ ⭕ ✅ ☑️ ✔️ ➕ ➖ ✖️ ➗ ♻️ ⚠️ 🚫 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪ 🟤 🟩 🟦 🟥 🟨 🟪 ⬆️ ⬇️ ⬅️ ➡️ ↗️ ↘️ ↙️ ↖️ 🔝 🔚 🔜 🔙 ♾️ ©️ ®️ ™️ #️⃣ *️⃣ 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣'};
-const STICKER_PACKS={'😂 ضحك':['😂','🤣','😹','😆','😅','🤭','😜','🤪','😎','🤓','🥳','😱'],'❤️ حب':['❤️','😍','🥰','😘','💋','💕','💞','💓','💗','💖','💘','💝'],'🔥 حماس':['🔥','⚡','💥','💯','🚀','👑','🏆','🎉','🎊','💪','👏','🙌'],'🐾 حيوانات':['🐶','🐱','🐼','🦊','🐻','🐨','🐯','🦁','🐰','🐸','🐵','🦄'],'👍 ردود':['👍','👎','👌','🙏','👏','🙌','🤝','✌️','🤞','👋','💚','✅']};
-const GIFS=Array.from({length:12},(_,i)=>`assets/gifs/gif_${i+1}.gif`);
+const STICKER_PACKS={'😂 ضحك':['😂','🤣','😹','😆','😅','🤭','😜','🤪','😎','🤓','🥳','😱'],'❤️ حب':['❤️','😍','🥰','😘','💋','💕','💞','💓','💗','💖','💘','💝'],'🔥 حماس':['🔥','⚡','💥','💯','🚀','👑','🏆','🎉','🎊','💪','👏','🙌'],'🐾 حيوانات':['🐶','🐱','🐼','🦊','🐻','🐨','🐯','🦁','🐰','🐸','🐵','🦄'],'👍 ردود':['👍','👎','👌','🙏','👏','🙌','🤝','✌️','🤞','👋','💚','✅'],'☕ فناجين':['☕','🍵','🫖','🥤','🧋','🍶','🍺','🍻','🥂','🍹','🍸','🍷'],'🧸 دباديب':['🧸','🐻','🐻‍❄️','🧸💗','🧸❤️','🧸✨','🐻🎀','🧸🎁','🧸🌸','🐻💕','🧸🥰','🧸👋']};
+const GIFS=Array.from({length:20},(_,i)=>`assets/gifs/gif_${i+1}.gif`);
 function sendRichReaction(kind,value){if(!activeChat)return toast('افتح محادثة أولًا');const content=kind==='sticker'?`__combo_sticker__:${value}`:`__combo_gif__:${value}`;sb.from('messages').insert({sender_id:me.id,receiver_id:activeChat.user.id,content,conversation_id:activeChat.conversation.id,message_type:kind}).then(r=>{if(r.error)return toast('تعذر إرسال العنصر');loadMessages();loadChats()});$('emojiPanel').classList.add('hidden')}
 function renderEmojiCategory(cat){const box=$('emojiContent'),list=(COMBO_EMOJI_CATS[cat]||'').split(' ');const icons={smileys:'😀',people:'👋',animals:'🐾',food:'🍕',activities:'⚽',travel:'🚗',objects:'💡',symbols:'❤️'};box.innerHTML=`<div class="emoji-category-bar">${Object.keys(COMBO_EMOJI_CATS).map(k=>`<button type="button" class="emoji-cat ${k===cat?'active':''}" data-cat="${k}">${icons[k]}</button>`).join('')}</div><div class="native-emoji-grid">${list.map(x=>`<button type="button">${x}</button>`).join('')}</div>`;box.querySelectorAll('.emoji-cat').forEach(b=>b.onclick=()=>renderEmojiCategory(b.dataset.cat));box.querySelectorAll('.native-emoji-grid button').forEach(b=>b.onclick=()=>insertAtCursor($('messageInput'),b.textContent))}
 function showEmojiTab(tab){document.querySelectorAll('.emoji-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));const box=$('emojiContent');if(tab==='emoji'){renderEmojiCategory('smileys');return}if(tab==='sticker'){const packs=Object.entries(STICKER_PACKS);box.innerHTML=`<div class="sticker-pack-tabs">${packs.map(([n],i)=>`<button type="button" class="sticker-pack-tab ${i===0?'active':''}" data-pack="${i}">${n}</button>`).join('')}</div><div id="stickerPackGrid" class="sticker-grid"></div>`;const renderPack=i=>{document.querySelectorAll('.sticker-pack-tab').forEach((b,j)=>b.classList.toggle('active',j===i));const vals=packs[i][1];$('stickerPackGrid').innerHTML=vals.map((x,j)=>`<button type="button" class="sticker-item"><span>${x}</span><small>${packs[i][0].split(' ')[1]||'ملصق'}</small></button>`).join('');$('stickerPackGrid').querySelectorAll('button').forEach((b,j)=>b.onclick=()=>sendRichReaction('sticker',`${i}:${j}`))};box.querySelectorAll('.sticker-pack-tab').forEach((b,i)=>b.onclick=()=>renderPack(i));renderPack(0);return}box.innerHTML=`<div class="gif-title">GIF متحرك</div><div class="gif-grid real-gifs">${GIFS.map((src,i)=>`<button type="button" class="gif-item"><img src="${src}" alt="GIF ${i+1}"><span>إرسال</span></button>`).join('')}</div>`;box.querySelectorAll('.gif-item').forEach((b,i)=>b.onclick=()=>sendRichReaction('gif',String(i)))}
@@ -907,4 +907,93 @@ handleSignal=async function(p){
   try{
     document.querySelectorAll('#audioCallBtn,#videoCallBtn,#otherVoiceBtn,#otherVideoBtn,.modern-call-btn,[data-call],#callsNav,#callsPage').forEach(el=>el.remove());
   }catch(_){ }
+})();
+
+/* ComboApp V14 - custom wallpapers, richer GIFs/stickers, reliable profile taps */
+(function(){
+  const $v14=id=>document.getElementById(id);
+  const escV14=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const builtInWalls=[
+    ['0','افتراضي',''],
+    ['1','نقاط نيون',''],['2','أخضر زجاجي',''],['3','أزرق ليلي',''],['4','أسود سادة',''],['5','وردي ناعم',''],['6','فوشيا',''],['7','أحمر غامق',''],['8','بنفسجي',''],['9','ذهبي',''],['10','سماوي',''],['11','قلب ونقاط',''],
+    ['img01','غروب وجسر','assets/wallpapers_custom/wall_01.jpg'],
+    ['img02','أسد وغزال','assets/wallpapers_custom/wall_02.jpg'],
+    ['img03','ورد وهدية','assets/wallpapers_custom/wall_03.jpg'],
+    ['img04','Porsche','assets/wallpapers_custom/wall_04.jpg'],
+    ['img05','برج إيفل','assets/wallpapers_custom/wall_05.jpg'],
+    ['img06','سماء درامية','assets/wallpapers_custom/wall_06.jpg'],
+    ['img07','قمر وشجرة','assets/wallpapers_custom/wall_07.jpg'],
+    ['img08','آيات وأذكار','assets/wallpapers_custom/wall_08.jpg'],
+    ['img09','قط كيوت','assets/wallpapers_custom/wall_09.jpg'],
+    ['img10','One Piece','assets/wallpapers_custom/wall_10.jpg']
+  ];
+  function getCustomWall(){return localStorage.getItem('combo_custom_wallpaper')||''}
+  function resizeImage(file,max=1200){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const scale=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*scale));c.height=Math.max(1,Math.round(im.height*scale));const x=c.getContext('2d');x.drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.78))};im.onerror=reject;im.src=r.result};r.onerror=reject;r.readAsDataURL(file)})}
+  window.applyChatWallpaper=function(){
+    const box=$v14('messagesBox'); if(!box)return;
+    const v=localStorage.getItem('combo_wallpaper')||'0';
+    box.style.backgroundImage='';box.style.backgroundSize='cover';box.style.backgroundPosition='center';box.style.backgroundAttachment='scroll';box.classList.remove('custom-wallpaper-bg');
+    if(v.startsWith('img')){const w=builtInWalls.find(x=>x[0]===v);if(w?.[2])box.style.backgroundImage=`linear-gradient(#03101655,#03101655),url("${w[2]}")`}
+    else if(v==='custom'&&getCustomWall())box.style.backgroundImage=`linear-gradient(#03101655,#03101655),url("${getCustomWall()}")`;
+    else {const p=['','wall-dots','wall-green','wall-blue','wall-black','wall-pink','wall-magenta','wall-red','wall-purple','wall-gold','wall-cyan','wall-hearts'][v]||''; if(p)box.classList.add(p)}
+  };
+  window.showWallpaper=function(){
+    const body=`<div class="v14-wall-tabs"><button id="v14WallGallery" class="choice-btn">🖼️ اختار صورة من المعرض</button><button id="v14WallRemove" class="choice-btn">🧹 إزالة الخلفية المخصصة</button></div><div class="v14-wall-grid">${builtInWalls.map(w=>`<button type="button" class="v14-wall-card" data-v14-wall="${w[0]}">${w[2]?`<img src="${w[2]}" loading="lazy">`:`<span class="v14-wall-swatch wall-choice-${w[0]}"></span>`}<b>${escV14(w[1])}</b></button>`).join('')}</div><input id="v14WallInput" type="file" accept="image/*" hidden>`;
+    openSimple('خلفيات الدردشة',body,'إغلاق');
+    setTimeout(()=>{
+      document.querySelectorAll('[data-v14-wall]').forEach(b=>b.onclick=()=>{localStorage.setItem('combo_wallpaper',b.dataset.v14Wall);window.applyChatWallpaper();closeSimple();toast('تم تغيير خلفية الدردشة')});
+      $v14('v14WallGallery')?.addEventListener('click',()=>$v14('v14WallInput')?.click());
+      $v14('v14WallRemove')?.addEventListener('click',()=>{localStorage.removeItem('combo_custom_wallpaper');localStorage.setItem('combo_wallpaper','0');window.applyChatWallpaper();closeSimple();toast('تمت إزالة الخلفية المخصصة')});
+      $v14('v14WallInput')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{if(!f.type.startsWith('image/'))throw Error();const data=await resizeImage(f,1200);if(data.length>1900000)toast('الصورة كبيرة جدًا، تم ضغطها تلقائيًا');localStorage.setItem('combo_custom_wallpaper',data);localStorage.setItem('combo_wallpaper','custom');window.applyChatWallpaper();closeSimple();toast('تم تعيين صورتك كخلفية')}catch(_){toast('تعذر استخدام الصورة')}});
+    },30);
+  };
+  async function sendStickerFile(file){
+    if(!window.activeChat && typeof activeChat==='undefined')return toast('افتح محادثة أولًا');
+    const chat=window.activeChat||activeChat; if(!chat)return;
+    if(!file||!file.type.startsWith('image/'))return toast('اختار صورة ملصق من الجهاز');
+    if(file.size>12*1024*1024)return toast('الملصق كبير جدًا');
+    const path=`${chat.conversation.id}/${me.id}/sticker-${crypto.randomUUID()}.${(file.name.split('.').pop()||'png').replace(/[^a-z0-9]/gi,'')||'png'}`;
+    const up=await sb.storage.from('chat-media').upload(path,file,{upsert:false,contentType:file.type});
+    if(up.error)return toast('تعذر رفع الملصق — تأكد أن وسائط الشات مفعلة');
+    const r=await sb.from('messages').insert({sender_id:me.id,receiver_id:chat.user.id,content:'',conversation_id:chat.conversation.id,message_type:'sticker',media_path:path,media_mime:file.type});
+    if(r.error){await sb.storage.from('chat-media').remove([path]);return toast('تعذر إرسال الملصق')}
+    $('emojiPanel')?.classList.add('hidden');await loadMessages();await loadChats();
+  }
+  function fileToDataURL(file,max=512){return resizeImage(file,max)}
+  async function saveImportedSticker(file){
+    try{const data=await fileToDataURL(file,512);let list=JSON.parse(localStorage.getItem('combo_imported_stickers')||'[]');list=[data,...list].slice(0,40);localStorage.setItem('combo_imported_stickers',JSON.stringify(list));showEmojiTab('sticker');toast('تمت إضافة الملصق إلى ملصقاتي')}catch(_){toast('تعذر إضافة الملصق')}}
+  function renderStickersV14(){
+    const box=$v14('emojiContent');if(!box)return;
+    const packs=Object.entries(STICKER_PACKS);const imported=JSON.parse(localStorage.getItem('combo_imported_stickers')||'[]');
+    box.innerHTML=`<div class="v14-sticker-tools"><button id="v14ImportSticker" class="choice-btn">➕ إضافة ملصق من المعرض / تطبيق ملصقات</button></div><div class="v14-pack-tabs">${packs.map(([n],i)=>`<button class="v14-pack-tab ${i===0?'active':''}" data-pack="${i}">${escV14(n.split(' ')[0])}</button>`).join('')}<button class="v14-pack-tab" data-pack="imported">📥</button></div><div id="v14StickerGrid" class="v14-sticker-grid"></div><input id="v14StickerInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>`;
+    const grid=$v14('v14StickerGrid');
+    function drawPack(key){
+      if(key==='imported'){grid.innerHTML=imported.length?imported.map((src,i)=>`<button class="v14-img-sticker" data-imported="${i}"><img src="${src}" loading="lazy"></button>`).join(''):`<div class="muted v14-empty">مفيش ملصقات مضافة — اضغط إضافة ملصق.</div>`}
+      else {const arr=packs[Number(key)]?.[1]||[];grid.innerHTML=arr.map((x,i)=>`<button class="v14-text-sticker" data-pack-index="${Number(key)}" data-sticker-index="${i}">${escV14(x)}</button>`).join('')}
+      grid.querySelectorAll('.v14-text-sticker').forEach(b=>b.onclick=()=>{sendRichReaction('sticker',`${b.dataset.packIndex}:${b.dataset.stickerIndex}`)});
+      grid.querySelectorAll('.v14-img-sticker').forEach(b=>b.onclick=async()=>{const idx=Number(b.dataset.imported);const src=imported[idx];try{const blob=await fetch(src).then(r=>r.blob());await sendStickerFile(new File([blob],`sticker-${idx}.png`,{type:blob.type||'image/png'}))}catch(_){toast('تعذر إرسال الملصق')}});
+    }
+    packs.forEach((_,i)=>{const b=box.querySelector(`[data-pack="${i}"]`);b.onclick=()=>{box.querySelectorAll('.v14-pack-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');drawPack(i)}});
+    box.querySelector('[data-pack="imported"]').onclick=()=>{box.querySelectorAll('.v14-pack-tab').forEach(x=>x.classList.remove('active'));box.querySelector('[data-pack="imported"]').classList.add('active');drawPack('imported')};
+    $v14('v14ImportSticker').onclick=()=>$v14('v14StickerInput').click();
+    $v14('v14StickerInput').onchange=async e=>{const f=e.target.files?.[0];e.target.value='';if(f)await saveImportedSticker(f)};
+    drawPack(0);
+  }
+  window.showEmojiTab=function(tab){document.querySelectorAll('.emoji-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));const box=$v14('emojiContent');if(!box)return;if(tab==='emoji'){if(typeof renderEmojiCategory==='function')renderEmojiCategory('smileys');else box.innerHTML='<div class="muted">الإيموجي غير متاح</div>'}else if(tab==='gif'){box.innerHTML=`<div class="v14-gif-grid">${GIFS.map((src,i)=>`<button class="v14-gif-card" data-gif="${i}"><img src="${src}" loading="lazy"><small>GIF ${i+1}</small></button>`).join('')}</div>`;box.querySelectorAll('[data-gif]').forEach(b=>b.onclick=()=>sendRichReaction('gif',Number(b.dataset.gif)))}else if(tab==='sticker'){renderStickersV14()}};
+  // Make profile taps work on the chat header and on the chat-list avatar/name without opening the chat first.
+  function profileForUserId(id){if(!id)return;sb.from('profiles').select('*').eq('id',id).maybeSingle().then(r=>{if(r.data)window.openOtherProfile(r.data);else toast('تعذر فتح الملف الشخصي')})}
+  function bindProfileTapsV14(){
+    const person=$v14('chatPerson');
+    if(person){person.style.cursor='pointer';person.onclick=e=>{if(e.target.closest('#chatMenuBtn'))return;e.preventDefault();e.stopPropagation();if(window.activeChat||typeof activeChat!=='undefined')window.openOtherProfile((window.activeChat||activeChat).user)}}
+    [$v14('chatAvatar'),$v14('chatTitle')].forEach(el=>{if(el)el.style.cursor='pointer'});
+    document.querySelectorAll('.chat-item').forEach(row=>{
+      const id=row.dataset.cid;const av=row.querySelector('.avatar');const nm=row.querySelector('.chat-info strong');
+      [av,nm].forEach(el=>{if(!el)return;el.style.cursor='pointer';el.onclick=e=>{e.preventDefault();e.stopPropagation();const cId=row.dataset.cid;sb.from('conversations').select('*').eq('id',cId).maybeSingle().then(r=>{const c=r.data;if(!c)return;const uid=c.user1_id===me.id?c.user2_id:c.user1_id;profileForUserId(uid)})}})
+    });
+  }
+  const _oldOpenOtherProfile=window.openOtherProfile;
+  window.openOtherProfile=function(u){if(typeof _oldOpenOtherProfile==='function')_oldOpenOtherProfile(u);else{if(!u)return;$v14('otherProfileModal')?.classList.remove('hidden')}$v14('otherProfilePhone').textContent=u?.phone?('📞 '+u.phone):'';$v14('otherProfileBio').textContent=u?.bio||'';$v14('otherProfileName').textContent=u?.display_name||'مستخدم';$v14('otherProfileAvatar').innerHTML=u?.avatar_url?`<img src="${escV14(u.avatar_url)}">`:initials(u?.display_name);$v14('otherProfileUsername').textContent=u?.username?'@'+u.username:'';$v14('otherProfileModal')?.classList.remove('hidden');};
+  document.addEventListener('click',e=>{if(e.target.closest('#chatPerson'))bindProfileTapsV14()});
+  const oldEnhance=window.enhanceUI;if(typeof oldEnhance==='function'&&!window.__v14EnhanceWrapped){window.__v14EnhanceWrapped=true;window.enhanceUI=function(){const r=oldEnhance();setTimeout(bindProfileTapsV14,80);return r}}
+  setTimeout(()=>{bindProfileTapsV14();window.applyChatWallpaper()},200);
 })();
