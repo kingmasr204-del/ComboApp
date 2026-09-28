@@ -413,3 +413,157 @@ setTimeout(()=>{
   if($('otherDeleteChatBtn')) $('otherDeleteChatBtn').onclick=async e=>{e.stopPropagation();closeOtherProfile();await deleteChat()};
   if($('callAudioUnlockBtn')) $('callAudioUnlockBtn').onclick=async()=>{try{const a=$('comboRemoteAudio');if(a)await a.play();if($('remoteVideo')?.srcObject)await $('remoteVideo').play();$('callAudioUnlockBtn').classList.add('hidden')}catch(e){toast('اضغط مرة أخرى لتشغيل الصوت')}};
 },10);
+
+/* ===== ComboApp V4: no-SQL fallback + real controls + expanded personalization ===== */
+(function(){
+  const LS='combo_call_history_local';
+  function localCalls(){try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch(_){return[]}}
+  function saveLocalCalls(a){localStorage.setItem(LS,JSON.stringify(a.slice(0,100)))}
+  function setting(key,def){return localStorage.getItem('combo_'+key) ?? def}
+  function setSetting(key,val){localStorage.setItem('combo_'+key,val)}
+
+  window.openOtherProfile = async function(u){
+    if(!u)return;
+    $('otherProfileName').textContent=u.display_name||'مستخدم';
+    $('otherProfileUsername').textContent=u.username?'@'+u.username:'';
+    let status='آخر ظهور غير متاح';
+    if(u.privacy_last_seen!=='nobody'){
+      if(u.privacy_last_seen==='contacts'){
+        const {data}=await sb.from('user_contacts').select('id').eq('owner_id',u.id).eq('contact_id',me.id).maybeSingle();
+        status=data?userOnlineText(u.last_seen):'آخر ظهور غير متاح';
+      }else status=userOnlineText(u.last_seen);
+    }
+    $('otherProfileStatus').textContent=status;
+    $('otherProfileAvatar').innerHTML=u.avatar_url?`<img src="${esc(u.avatar_url)}">`:esc(initials(u.display_name));
+    $('otherProfileModal').classList.remove('hidden');
+  };
+
+  window.showPrivacy = function(){
+    const row=(id,label,val,opts=['everyone','contacts','nobody'])=>`<label class="privacy-row"><span>${label}</span><select id="${id}">${opts.map(v=>`<option value="${v}" ${val===v?'selected':''}>${v==='everyone'?'الجميع':v==='contacts'?'جهات اتصالي':'لا أحد'}</option>`).join('')}</select></label>`;
+    const body=`<div class="settings-info privacy-live">
+      <h4>الخصوصية — تحكم كامل</h4>
+      ${row('pLast','آخر ظهور',setting('privacy_last_seen',me?.privacy_last_seen||'everyone'))}
+      ${row('pOnline','من يرى أنني متصل الآن',setting('privacy_online','everyone'))}
+      ${row('pAvatar','صورة الملف الشخصي',setting('privacy_avatar',me?.privacy_avatar||'everyone'))}
+      ${row('pAbout','النبذة والمعلومات',setting('privacy_about',me?.privacy_profile||'everyone'))}
+      ${row('pStatus','الحالة',setting('privacy_status',me?.privacy_status||'everyone'))}
+      ${row('pGroups','إضافتي للمجموعات',setting('privacy_groups','everyone'))}
+      ${row('pCalls','من يمكنه الاتصال بي',setting('privacy_calls','everyone'))}
+      <label class="privacy-row"><span>إيصالات القراءة</span><input id="pRead" type="checkbox" ${setting('read_receipts',me?.read_receipts||'on')!=='off'?'checked':''}></label>
+      <label class="privacy-row"><span>مؤشر الكتابة</span><input id="pTyping" type="checkbox" ${setting('typing','on')!=='off'?'checked':''}></label>
+      <label class="privacy-row"><span>إظهار حالتي للجهات الجديدة</span><input id="pNewStatus" type="checkbox" ${setting('new_status','on')!=='off'?'checked':''}></label>
+      <button id="savePrivacyV4" class="primary">حفظ كل إعدادات الخصوصية</button>
+    </div>`;
+    openSimple('الخصوصية والأمان',body,'إغلاق');
+    setTimeout(()=>{
+      $('savePrivacyV4')?.addEventListener('click',async()=>{
+        const vals={privacy_last_seen:$('pLast').value,privacy_online:$('pOnline').value,privacy_avatar:$('pAvatar').value,privacy_about:$('pAbout').value,privacy_status:$('pStatus').value,privacy_groups:$('pGroups').value,privacy_calls:$('pCalls').value,read_receipts:$('pRead').checked?'on':'off',typing:$('pTyping').checked?'on':'off',new_status:$('pNewStatus').checked?'on':'off'};
+        Object.entries(vals).forEach(([k,v])=>setSetting(k,v));
+        const db={privacy_last_seen:vals.privacy_last_seen,privacy_avatar:vals.privacy_avatar,privacy_profile:vals.privacy_about,privacy_status:vals.privacy_status,read_receipts:vals.read_receipts};
+        const r=await sb.from('profiles').update(db).eq('id',me.id);
+        if(!r.error)me={...me,...db};
+        closeSimple();toast('تم حفظ إعدادات الخصوصية');
+      });
+    },30);
+  };
+
+  window.showSettings = function(){
+    const on=(k,def='on')=>setting(k,def)==='on';
+    const body=`<div class="settings-info live-settings v4-settings">
+      <button class="setting-live" data-v4="notifications">🔔 الإشعارات <b>${Notification.permission==='granted'?'مفعلة':'تفعيل'}</b></button>
+      <button class="setting-live" data-v4="sound">🔊 صوت الرسائل <b>${on('sound')?'مفعل':'متوقف'}</b></button>
+      <button class="setting-live" data-v4="theme">🎨 ألوان التطبيق <b>اختيار</b></button>
+      <button class="setting-live" data-v4="wallpaper">🖼️ خلفية المحادثات <b>اختيار</b></button>
+      <button class="setting-live" data-v4="chatstyle">💬 شكل المحادثة والفقاعات <b>اختيار</b></button>
+      <button class="setting-live" data-v4="font">🔤 حجم الخط <b>${setting('font','medium')}</b></button>
+      <button class="setting-live" data-v4="enter">↵ الإرسال بزر Enter <b>${on('enter','off')?'مفعل':'متوقف'}</b></button>
+      <button class="setting-live" data-v4="media">📥 التنزيل التلقائي للوسائط <b>${on('media','off')?'مفعل':'متوقف'}</b></button>
+      <button class="setting-live" data-v4="animations">✨ الحركة داخل التطبيق <b>${on('animations')?'مفعلة':'متوقفة'}</b></button>
+      <button class="setting-live" data-v4="vibration">📳 الاهتزاز <b>${on('vibration')?'مفعل':'متوقف'}</b></button>
+      <button class="setting-live" data-v4="calls">📞 إعدادات المكالمات <b>فتح</b></button>
+      <button class="setting-live" data-v4="privacy">🛡️ إعدادات الخصوصية <b>فتح</b></button>
+      <button class="setting-live" data-v4="reset">↺ استعادة الإعدادات الافتراضية</button>
+      <div class="settings-about"><strong>ComboApp</strong><small>تواصل بحرية • الإصدار V4</small></div>
+    </div>`;
+    openSimple('الإعدادات',body,'إغلاق');
+    setTimeout(()=>document.querySelectorAll('[data-v4]').forEach(b=>b.onclick=async()=>{
+      const a=b.dataset.v4;
+      if(a==='notifications'){await requestNotifications();b.querySelector('b').textContent='مفعلة';return}
+      if(a==='theme'){showThemePicker();return}
+      if(a==='wallpaper'){showWallpaper();return}
+      if(a==='chatstyle'){showChatStyle();return}
+      if(a==='privacy'){showPrivacy();return}
+      if(a==='calls'){openSimple('إعدادات المكالمات',`<div class="settings-info"><label class="privacy-row"><span>الكاميرا الأمامية تلقائيًا</span><input id="callMirror" type="checkbox" ${on('call_mirror')?'checked':''}></label><label class="privacy-row"><span>تشغيل السماعة تلقائيًا</span><input id="callSpeaker" type="checkbox" ${on('call_speaker')?'checked':''}></label><button id="saveCallPrefs" class="primary">حفظ</button></div>`,'إغلاق');setTimeout(()=>$('saveCallPrefs')?.addEventListener('click',()=>{setSetting('call_mirror',$('callMirror').checked?'on':'off');setSetting('call_speaker',$('callSpeaker').checked?'on':'off');closeSimple();toast('تم حفظ إعدادات المكالمات')}),30);return}
+      if(a==='reset'){if(confirm('استعادة إعدادات ComboApp الافتراضية؟')){Object.keys(localStorage).filter(k=>k.startsWith('combo_')).forEach(k=>localStorage.removeItem(k));applyTheme();applyChatWallpaper();applyChatStyle();closeSimple();toast('تمت استعادة الإعدادات الافتراضية')}return}
+      if(a==='sound'){setSetting('sound',on('sound')?'off':'on');showSettings();return}
+      if(a==='enter'){setSetting('enter',on('enter','off')?'off':'on');showSettings();return}
+      if(a==='media'){setSetting('media',on('media','off')?'off':'on');showSettings();return}
+      if(a==='animations'){setSetting('animations',on('animations')?'off':'on');document.documentElement.classList.toggle('no-animations',!on('animations'));showSettings();return}
+      if(a==='vibration'){setSetting('vibration',on('vibration')?'off':'on');showSettings();return}
+      if(a==='font'){const cur=setting('font','medium');const next=cur==='small'?'medium':cur==='medium'?'large':'small';setSetting('font',next);applyV4Font();showSettings();return}
+    }),30);
+  };
+
+  window.showThemePicker = function(){
+    const themes=[['teal','تركوازي'],['mint','نعناعي'],['pink','وردي'],['rose','روز'],['magenta','فوشيا'],['red','أحمر'],['hotred','أحمر فاقع'],['coral','مرجاني'],['purple','بنفسجي'],['blue','أزرق'],['sky','سماوي'],['orange','برتقالي'],['gold','ذهبي'],['lime','ليموني'],['white','فاتح'],['dark','أسود']];
+    openSimple('ألوان ComboApp',`<div class="theme-grid">${themes.map(x=>`<button class="theme-choice theme-${x[0]}" data-theme-v4="${x[0]}">${x[1]}</button>`).join('')}</div>`,'إغلاق');
+    setTimeout(()=>document.querySelectorAll('[data-theme-v4]').forEach(b=>b.onclick=()=>{setSetting('theme',b.dataset.themeV4);applyTheme();closeSimple();toast('تم تغيير لون ComboApp')}),30);
+  };
+
+  window.applyTheme = function(){document.documentElement.dataset.theme=setting('theme','teal')};
+  window.applyV4Font = function(){document.documentElement.dataset.font=setting('font','medium')};
+
+  const v4Walls=[
+    ['0','افتراضي',''],['1','نقاط نيون','wall-dots'],['2','أخضر زجاجي','wall-green'],['3','أزرق ليلي','wall-blue'],['4','أسود','wall-black'],['5','وردي','wall-pink'],['6','فوشيا','wall-magenta'],['7','أحمر','wall-red'],['8','بنفسجي','wall-purple'],['9','ذهبي','wall-gold'],['10','سماوي','wall-cyan'],['11','قلوب','wall-hearts'],
+    ['sunset','غروب الشمس','img'],['mountains','الجبال','img'],['ocean','البحر','img'],['forest','الغابة','img'],['leaves','أوراق طبيعية','img'],['cats','القطط','img'],['dogs','الكلاب','img'],['space','الفضاء','img'],['flowers','الزهور','img'],['clouds','السحاب','img'],['geometric','هندسي','img']
+  ];
+  window.showWallpaper=function(){
+    openSimple('خلفيات المحادثات',`<div class="wall-grid v4-wall-grid">${v4Walls.map(x=>`<button class="wall-choice ${x[2]==='img'?'wall-image-choice':''}" data-wall-v4="${x[0]}" ${x[2]==='img'?`style="background-image:url('wallpapers/${x[0]}.svg')"`:''}>${x[1]}</button>`).join('')}</div>`,'إغلاق');
+    setTimeout(()=>document.querySelectorAll('[data-wall-v4]').forEach(b=>b.onclick=()=>{setSetting('wallpaper',b.dataset.wallV4);applyChatWallpaper();closeSimple();toast('تم تغيير خلفية المحادثة')}),30);
+  };
+  window.applyChatWallpaper=function(){
+    const v=setting('wallpaper','0');const panel=$('chatPanel');if(!panel)return;
+    panel.className='modal-panel chat-panel';panel.dataset.bubbles=setting('bubbles','classic');panel.dataset.ticks=setting('ticks','blue');
+    const map={'1':'wall-dots','2':'wall-green','3':'wall-blue','4':'wall-black','5':'wall-pink','6':'wall-magenta','7':'wall-red','8':'wall-purple','9':'wall-gold','10':'wall-cyan','11':'wall-hearts'};
+    if(map[v])panel.classList.add(map[v]);
+    if(v4Walls.some(x=>x[0]===v&&x[2]==='img')){panel.querySelector('.messages')?.style.setProperty('background-image',`url('wallpapers/${v}.svg')`);panel.querySelector('.messages')?.style.setProperty('background-size','cover');panel.querySelector('.messages')?.style.setProperty('background-attachment','fixed');}
+    else if(panel.querySelector('.messages'))panel.querySelector('.messages').style.removeProperty('background-image');
+  };
+  window.showChatStyle=function(){
+    const bubbles=[['classic','ComboApp'],['soft','ناعمة'],['round','دائرية'],['glass','زجاجية'],['pill','مستديرة'],['square','مربعة'],['neon','نيون']];
+    const ticks=[['blue','أزرق'],['white','أبيض'],['green','أخضر'],['black','أسود'],['teal','تركوازي'],['pink','وردي']];
+    openSimple('نمط الدردشة',`<h4>شكل الفقاعات</h4><div class="style-grid">${bubbles.map(x=>`<button class="style-choice" data-bubble-v4="${x[0]}">${x[1]}</button>`).join('')}</div><h4>شكل علامة الصح</h4><div class="style-grid">${ticks.map(x=>`<button class="style-choice" data-ticks-v4="${x[0]}">${x[1]} ✓✓</button>`).join('')}</div>`,'إغلاق');
+    setTimeout(()=>{document.querySelectorAll('[data-bubble-v4]').forEach(b=>b.onclick=()=>{setSetting('bubbles',b.dataset.bubbleV4);applyChatWallpaper();toast('تم تغيير شكل الفقاعات')});document.querySelectorAll('[data-ticks-v4]').forEach(b=>b.onclick=()=>{setSetting('ticks',b.dataset.ticksV4);applyChatWallpaper();toast('تم تغيير علامة الصح')})},30);
+  };
+
+  window.loadCallHistory=async function(){
+    const r=await sb.from('call_history').select('*,profiles:peer_id(display_name,avatar_url)').eq('user_id',me.id).order('created_at',{ascending:false}).limit(100);
+    let data=r.error?[]:(r.data||[]);
+    if(r.error){data=localCalls().map(c=>({...c,profiles:{display_name:c.peer_name,avatar_url:c.peer_avatar||null}}));}
+    $('callHistory').innerHTML=data.map(c=>`<div class="chat-item"><div class="avatar">${c.profiles?.avatar_url?`<img src="${esc(c.profiles.avatar_url)}">`:initials(c.profiles?.display_name)}</div><div class="chat-info"><strong>${esc(c.profiles?.display_name||'مستخدم')}</strong><small>${c.call_type==='video'?'فيديو':'صوت'} · ${c.status==='missed'?'مكالمة فائتة':'انتهت'} · ${fmtDuration(c.duration_seconds||0)}</small></div><span class="time">${fmt(c.created_at)}</span></div>`).join('')||'<div class="empty-card"><h3>سجل المكالمات</h3><p class="muted">لسه مفيش مكالمات مسجلة.</p></div>';
+  };
+
+  window.stopCall=async function(sendHangup=true){
+    const old=activeCall;const duration=callStartedAt?Math.max(0,Math.floor((Date.now()-callStartedAt)/1000)):0;
+    if(sendHangup&&old)try{await sendCallSignal(old.conversationId,{type:'hangup',callId:old.id,from:me?.id,to:old.peerId})}catch(_){}
+    if(old&&me){
+      const row={user_id:me.id,conversation_id:old.conversationId,peer_id:old.peerId,peer_name:activeChat?.user?.display_name||'مستخدم',peer_avatar:activeChat?.user?.avatar_url||null,call_type:old.video?'video':'audio',status:duration?'ended':'missed',duration_seconds:duration,created_at:new Date().toISOString()};
+      const r=await sb.from('call_history').insert({user_id:row.user_id,conversation_id:row.conversation_id,peer_id:row.peer_id,call_type:row.call_type,status:row.status,duration_seconds:row.duration_seconds});
+      if(r.error){const a=localCalls();a.unshift(row);saveLocalCalls(a)}
+    }
+    if(callTimer)clearInterval(callTimer);callTimer=null;callStartedAt=null;if(peer){peer.close();peer=null}if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}const a=$('comboRemoteAudio');if(a){a.pause();a.srcObject=null}activeCall=null;pendingIceCandidates=[];$('callModal').classList.add('hidden');resetCallUI();await loadCallHistory();
+  };
+
+  const oldEnhance=window.enhanceUI;
+  window.enhanceUI=function(){
+    try{oldEnhance?.()}catch(_){}
+    const cp=$('chatPerson'),ct=$('chatTitle'),ca=$('chatAvatar');
+    if(cp)cp.onclick=(e)=>{if(e.target.closest('.chat-head-actions'))return;if(activeChat)openOtherProfile(activeChat.user)};
+    [ct,ca].forEach(el=>{if(el)el.onclick=(e)=>{e.stopPropagation();if(activeChat)openOtherProfile(activeChat.user)}});
+    if(cp)cp.style.cursor='pointer';
+    if($('otherProfileModal'))$('otherProfileModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeOtherProfile()});
+    applyTheme();applyV4Font();applyChatWallpaper();applyChatStyle();
+  };
+})();
+
+setTimeout(()=>{try{enhanceUI();applyTheme();applyV4Font();applyChatWallpaper();}catch(e){console.error(e)}},80);

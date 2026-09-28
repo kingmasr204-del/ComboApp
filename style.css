@@ -40,3 +40,21 @@
 .wall-pink .messages{background:linear-gradient(135deg,#2a1023,#0d0710)}.wall-magenta .messages{background:linear-gradient(135deg,#35102b,#100611)}.wall-red .messages{background:linear-gradient(135deg,#300b12,#0e0507)}.wall-purple .messages{background:linear-gradient(135deg,#241233,#08040d)}.wall-gold .messages{background:linear-gradient(135deg,#30240a,#0d0a03)}.wall-cyan .messages{background:linear-gradient(135deg,#092d39,#031116)}.wall-hearts .messages{background-color:#09151a;background-image:radial-gradient(#ff4d7d22 2px,transparent 2px),radial-gradient(#00e6b022 2px,transparent 2px);background-position:0 0,12px 12px;background-size:24px 24px}
 .chat-person{cursor:pointer}.other-profile-settings button{cursor:pointer}.profile-actions-grid button{cursor:pointer}.call-panel{z-index:80}
 @media(max-width:520px){.theme-grid{grid-template-columns:repeat(2,1fr)}.wall-grid{grid-template-columns:1fr 1fr}.privacy-row{font-size:13px}.privacy-row select{min-width:110px}}
+
+/* ===== V4 visual pack ===== */
+:root[data-theme="mint"]{--combo-accent:#64ffd0;--combo-accent2:#1e9c83;--combo-mine:#31dcae}
+:root[data-theme="rose"]{--combo-accent:#ff86c8;--combo-accent2:#a84679;--combo-mine:#ff70b8}
+:root[data-theme="coral"]{--combo-accent:#ff806d;--combo-accent2:#a94336;--combo-mine:#ff6654}
+:root[data-theme="sky"]{--combo-accent:#65ddff;--combo-accent2:#267aa1;--combo-mine:#32c9ef}
+:root[data-theme="dark"]{--combo-accent:#b7fff4;--combo-accent2:#45605e;--combo-mine:#253e3c}
+:root[data-font="small"]{font-size:14px} :root[data-font="medium"]{font-size:16px} :root[data-font="large"]{font-size:18px}
+.no-animations *, .no-animations *::before, .no-animations *::after{animation:none!important;transition:none!important}
+.settings-about{margin-top:16px;padding:18px;border:1px solid #153a42;border-radius:18px;text-align:center;background:#07181e}.settings-about strong{display:block;color:var(--combo-accent);font-size:20px}.settings-about small{color:#789592}
+.v4-settings .setting-live{min-height:54px}.v4-settings .setting-live b{font-weight:800}
+.v4-wall-grid{grid-template-columns:repeat(2,1fr);max-height:62vh;overflow:auto;padding-right:2px}.wall-image-choice{min-height:105px;background-size:cover!important;background-position:center!important;text-shadow:0 2px 8px #000;border-color:#00d9b0!important}
+.profile-actions-grid button span img{width:34px;height:34px;object-fit:contain;border-radius:10px}.profile-actions-grid button span{overflow:hidden}
+.modern-call-btn{display:grid!important;place-items:center}.modern-call-btn img{width:30px;height:30px;object-fit:contain;border-radius:9px}
+.chat-person{padding:5px 8px;border-radius:15px;min-width:0}.chat-person:active{background:#0b2830}.chat-head-actions{position:relative;z-index:5}
+.chat-head .modern-call-btn{border:0;background:transparent!important}.chat-head .modern-call-btn img{filter:drop-shadow(0 0 5px #00e6b0)}
+.other-profile-settings button:active,.profile-actions-grid button:active,.setting-live:active,.wall-choice:active,.theme-choice:active{transform:scale(.98)}
+.chat-panel .messages{transition:background .25s ease}.wall-image-choice::after{content:attr(data-label)}
