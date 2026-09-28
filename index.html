@@ -1,96 +1,17 @@
-<!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#061318">
-<meta name="description" content="ComboApp — تواصل بحرية">
-<link rel="icon" href="logo.svg" type="image/svg+xml">
-<link rel="manifest" href="manifest.webmanifest">
-<title>ComboApp — تواصل بحرية</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
-<noscript><div style="position:fixed;inset:0;background:#020b10;color:#fff;display:grid;place-items:center;padding:24px;text-align:center;font-family:Arial,sans-serif;z-index:9999"><div><h2>ComboApp</h2><p>لازم تفعّل JavaScript في المتصفح علشان التطبيق يشتغل.</p></div></div></noscript>
-<div id="toast" class="toast"></div>
-
-<section id="authScreen" class="screen auth-screen">
-  <div class="brand">
-    <img class="brand-logo" src="logo.svg" alt="ComboApp">
-    <h1>Combo<span>App</span></h1><p>تواصل بحرية ..</p>
-  </div>
-  <div id="loginPanel" class="auth-card">
-    <h2>تسجيل الدخول</h2><p class="muted">ادخل بحساب ComboApp الخاص بك</p>
-    <input id="loginEmail" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
-    <input id="loginPassword" type="password" placeholder="كلمة السر" autocomplete="current-password">
-    <button id="loginBtn" class="primary">دخول</button>
-    <button id="showSignupBtn" class="link-btn">إنشاء حساب جديد</button>
-    <button id="forgotBtn" class="link-btn small">نسيت كلمة السر؟</button>
-  </div>
-  <div id="signupPanel" class="auth-card hidden">
-    <h2>إنشاء حساب</h2><p class="muted">سجّل بالبريد الإلكتروني فقط</p>
-    <input id="signupName" placeholder="الاسم الظاهر" autocomplete="name">
-    <input id="signupUsername" placeholder="اسم المستخدم — مثال: mahmoud" autocomplete="username">
-    <input id="signupEmail" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
-    <input id="signupPhone" type="tel" placeholder="رقم الموبايل (مثال: 010xxxxxxxx)" autocomplete="tel">
-    <input id="signupPassword" type="password" placeholder="كلمة السر" autocomplete="new-password">
-    <input id="signupPassword2" type="password" placeholder="تأكيد كلمة السر" autocomplete="new-password">
-    <button id="signupBtn" class="primary">إنشاء الحساب</button>
-    <button id="showLoginBtn" class="link-btn">رجوع لتسجيل الدخول</button>
-  </div>
-  <div id="recoveryPanel" class="auth-card hidden">
-    <h2>تغيير كلمة السر</h2><p class="muted">اكتب كلمة السر الجديدة</p>
-    <input id="newPassword" type="password" placeholder="كلمة السر الجديدة" autocomplete="new-password">
-    <input id="newPassword2" type="password" placeholder="تأكيد كلمة السر" autocomplete="new-password">
-    <button id="saveNewPasswordBtn" class="primary">حفظ كلمة السر</button>
-  </div>
-</section>
-
-<section id="appScreen" class="screen app-screen hidden">
-<header class="topbar">
-  <div class="top-brand"><img class="mini-logo" src="logo.svg" alt=""><strong>الكومبو أب</strong></div>
-  <div class="top-actions"><button id="notifyBtn" class="icon-btn" title="إشعارات">🔔</button><button id="profileBtn" class="icon-btn">👤</button><button id="logoutBtn" class="icon-btn">↪</button></div>
-</header>
-<main>
-<section id="homePage" class="page active">
-  <div class="hero-title"><h2>الدردشات</h2><button id="newChatBtn" class="round-btn">＋</button></div>
-  <div class="search-box"><span>⌕</span><input id="userSearch" placeholder="ابحث عن محادثة أو شخص..."></div>
-  <div id="searchResults" class="search-results hidden"></div>
-  <div id="chatContactsHint" class="muted contacts-hint">اضغط ＋ لفتح جهات الاتصال وبدء محادثة جديدة.</div>
-  <div class="quick-row"><button id="archivedBtn" class="quick-card">🗂️<span>الأرشيف</span></button><button id="refreshBtn" class="quick-card">↻<span>تحديث</span></button></div>
-  <div id="chatList" class="list"></div>
-</section>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#061318"><meta name="description" content="ComboApp — تواصل بحرية"><link rel="icon" href="logo.svg" type="image/svg+xml"><link rel="manifest" href="manifest.webmanifest"><title>ComboApp — تواصل بحرية</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script></head><body><noscript><div class="noscript">لازم تفعّل JavaScript علشان ComboApp يشتغل.</div></noscript><div id="toast" class="toast"></div>
+<section id="authScreen" class="screen auth-screen"><div class="brand"><img class="brand-logo" src="logo.svg" alt="ComboApp"><h1>Combo<span>App</span></h1><p>تواصل بحرية ..</p></div><div id="loginPanel" class="auth-card"><h2>تسجيل الدخول</h2><p class="muted">ادخل بحساب ComboApp الخاص بك</p><input id="loginEmail" type="email" placeholder="البريد الإلكتروني"><input id="loginPassword" type="password" placeholder="كلمة السر"><button id="loginBtn" class="primary">دخول</button><button id="showSignupBtn" class="link-btn">إنشاء حساب جديد</button><button id="forgotBtn" class="link-btn small">نسيت كلمة السر؟</button></div><div id="signupPanel" class="auth-card hidden"><h2>إنشاء حساب</h2><p class="muted">سجّل بالبريد الإلكتروني فقط</p><input id="signupName" placeholder="الاسم الظاهر"><input id="signupUsername" placeholder="اسم المستخدم — مثال: mahmoud"><input id="signupEmail" type="email" placeholder="البريد الإلكتروني"><input id="signupPhone" type="tel" placeholder="رقم الموبايل"><input id="signupPassword" type="password" placeholder="كلمة السر"><input id="signupPassword2" type="password" placeholder="تأكيد كلمة السر"><button id="signupBtn" class="primary">إنشاء الحساب</button><button id="showLoginBtn" class="link-btn">رجوع لتسجيل الدخول</button></div><div id="recoveryPanel" class="auth-card hidden"><h2>تغيير كلمة السر</h2><input id="newPassword" type="password" placeholder="كلمة السر الجديدة"><input id="newPassword2" type="password" placeholder="تأكيد كلمة السر"><button id="saveNewPasswordBtn" class="primary">حفظ كلمة السر</button></div></section>
+<section id="appScreen" class="screen app-screen hidden"><header class="topbar"><div class="top-brand"><img class="mini-logo" src="logo.svg"><strong>الكومبو أب</strong></div><div class="top-actions"><button id="notifyBtn" class="icon-btn">🔔</button><button id="profileBtn" class="icon-btn">👤</button><button id="logoutBtn" class="icon-btn">↪</button></div></header><main>
+<section id="homePage" class="page active"><div class="hero-title"><div><h2>الدردشات</h2><p class="muted">تواصل بحرية</p></div><button id="newChatBtn" class="round-btn">＋</button></div><div class="search-box">⌕<input id="userSearch" placeholder="ابحث عن محادثة أو شخص..."></div><div id="searchResults" class="search-results hidden"></div><div class="quick-row"><button id="archivedBtn" class="quick-card">🗂️ <span>الأرشيف</span></button><button id="refreshBtn" class="quick-card">↻ <span>تحديث</span></button></div><div id="chatList" class="list"></div></section>
 <section id="archivedPage" class="page"><div class="hero-title"><h2>المحادثات المؤرشفة</h2><button id="backHomeBtn" class="round-btn">←</button></div><div id="archivedList" class="list"></div></section>
-<section id="storiesPage" class="page">
-  <div class="hero-title"><h2>الستوري</h2><button id="addStoryBtn" class="round-btn">＋</button></div>
-  <div class="story-create"><textarea id="storyText" maxlength="500" placeholder="اكتب حالة جديدة... (اختياري)"></textarea><div class="story-media-row"><label class="media-pick">📎 إضافة صورة / فيديو / أغنية<input id="storyMediaInput" type="file" accept="image/*,video/*,audio/*" hidden></label><span id="storyMediaName" class="muted">لم يتم اختيار ملف</span></div><div id="storyMediaPreview" class="story-media-preview hidden"></div><button id="clearStoryMediaBtn" class="link-btn small hidden">إزالة الملف</button><button id="publishStoryBtn" class="primary">نشر الحالة</button></div>
-  <div id="storiesList" class="stories-grid"></div>
-</section>
-<section id="sarhnyPage" class="page">
-  <div class="hero-title"><h2>صارحني</h2></div>
-  <div class="sarhny-card"><div class="sarhny-icon">♡</div><h3>رسائلك السرية</h3><p>ابعت رسالة لشخص بدون ما يظهر اسمك.</p>
-    <input id="sarhnyUsername" placeholder="اسم المستخدم"><textarea id="sarhnyContent" maxlength="1000" placeholder="اكتب رسالتك هنا..."></textarea>
-    <div class="counter"><span id="sarhnyCount">0</span>/1000</div><button id="sendSarhnyBtn" class="primary">إرسال ✈</button>
-  </div><div class="section-title">الرسائل التي وصلتك</div><div id="sarhnyInbox" class="list"></div>
-</section>
+<section id="storiesPage" class="page"><div class="hero-title"><div><h2>الستوري</h2><p class="muted">شارك لحظتك مع أصحابك</p></div><button id="addStoryBtn" class="round-btn">＋</button></div><div id="storiesList" class="stories-grid"></div></section>
+<section id="sarhnyPage" class="page"><div class="hero-title"><h2>صارحني</h2></div><div class="sarhny-card"><div class="sarhny-icon">♡</div><h3>رسائلك السرية</h3><p>ابعت رسالة لشخص بدون ما يظهر اسمك.</p><input id="sarhnyUsername" placeholder="اسم المستخدم"><textarea id="sarhnyContent" maxlength="1000" placeholder="اكتب رسالتك هنا..."></textarea><div class="counter"><span id="sarhnyCount">0</span>/1000</div><button id="sendSarhnyBtn" class="primary">إرسال ✈</button></div><div class="section-title">الرسائل التي وصلتك</div><div id="sarhnyInbox" class="list"></div></section>
 <section id="callsPage" class="page"><div class="hero-title"><h2>المكالمات</h2></div><div id="callHistory" class="list"></div></section>
-<section id="profilePage" class="page">
-  <div class="hero-title"><h2>الملف الشخصي</h2></div>
-  <div class="profile-card"><div id="profileAvatar" class="avatar big">C</div><input id="profileName" placeholder="الاسم"><input id="profileUsername" placeholder="اسم المستخدم"><input id="profilePhone" type="tel" placeholder="رقم الموبايل"><textarea id="profileBio" maxlength="160" placeholder="نبذة عنك"></textarea><button id="saveProfileBtn" class="primary">حفظ التغييرات</button></div>
-  <div class="settings-card"><button id="changePasswordBtn" class="setting">🔐 تغيير كلمة السر <span>›</span></button><button id="appLockBtn" class="setting">🔒 قفل التطبيق برمز <span id="appLockState">›</span></button></div>
-</section>
-</main>
-<nav class="bottom-nav"><button data-page="homePage" class="nav active">💬<span>الدردشات</span></button><button data-page="storiesPage" class="nav">◯<span>الستوري</span></button><button data-page="sarhnyPage" class="nav">♡<span>صارحني</span></button><button data-page="callsPage" class="nav">☎<span>المكالمات</span></button></nav>
-</section>
-
-<div id="contactsModal" class="modal hidden"><div class="modal-panel small-panel contacts-panel"><header class="contacts-head"><div><h3 style="margin:0">جهات الاتصال</h3><small class="muted">المستخدمين على ComboApp يظهر لهم "دردشة"</small></div><button id="closeContactsBtn" class="icon-btn">✕</button></header><button id="pickContactsBtn" class="primary">📱 اختيار جهات الاتصال</button><input id="contactSearch" class="modal-search" placeholder="ابحث في جهات الاتصال..." autocomplete="off"><div id="contactsList" class="list contacts-list"></div></div></div>
-
-<div id="chatModal" class="modal hidden"><div class="modal-panel chat-panel"><header class="chat-head"><button id="closeChatBtn" class="icon-btn">←</button><div><strong id="chatTitle">المحادثة</strong><small id="chatStatus">غير متصل</small></div><div class="chat-head-actions"><button id="voiceCallBtn" class="icon-btn">☎</button><button id="videoCallBtn" class="icon-btn">▣</button><button id="chatMenuBtn" class="icon-btn">⋮</button></div></header><div id="messagesBox" class="messages"></div><div class="composer"><input id="messageInput" placeholder="اكتب رسالة..."><button id="sendMessageBtn" class="send-round">➤</button></div></div></div>
-
-<div id="pinModal" class="modal hidden"><div class="modal-panel small-panel"><h3 id="pinTitle">قفل المحادثة</h3><p class="muted">اكتب رمزًا من 4 إلى 8 أرقام.</p><input id="pinInput" type="password" inputmode="numeric" maxlength="8" placeholder="••••"><button id="pinConfirmBtn" class="primary">تأكيد</button><button id="pinCancelBtn" class="link-btn">إلغاء</button></div></div>
-<div id="lockScreen" class="lock-screen hidden"><div class="lock-box"><img class="lock-logo" src="logo.svg" alt="ComboApp"><h2>ComboApp مقفول</h2><input id="unlockInput" type="password" inputmode="numeric" maxlength="8" placeholder="رمز القفل"><button id="unlockBtn" class="primary">فتح</button></div></div>
-
-<div id="callModal" class="modal hidden"><div class="call-panel"><header><div><strong id="callTitle">مكالمة</strong><small id="callState">جارٍ الاتصال...</small></div><button id="endCallBtn" class="danger-btn">إنهاء</button></header><div class="video-stage"><video id="remoteVideo" autoplay playsinline></video><video id="localVideo" autoplay muted playsinline></video><div id="callAvatar" class="call-avatar">C</div></div><div class="call-controls"><button id="muteBtn" class="call-btn">🎙️</button><button id="cameraBtn" class="call-btn">📷</button></div></div></div>
-<script src="app.js"></script>
-</body></html>
+<section id="profilePage" class="page"><div class="hero-title"><h2>الملف الشخصي</h2></div><div class="profile-card"><button id="avatarActionBtn" class="avatar big avatar-button">C</button><div class="profile-hint">اضغط على الصورة لإضافة أو حذف صورة</div><input id="profileName" placeholder="الاسم"><input id="profileUsername" placeholder="اسم المستخدم"><input id="profilePhone" type="tel" placeholder="رقم الموبايل"><textarea id="profileBio" maxlength="160" placeholder="نبذة عنك"></textarea><button id="saveProfileBtn" class="primary">حفظ التغييرات</button></div><div class="settings-card"><div class="settings-title">الحساب</div><button id="changePasswordBtn" class="setting">🔐 تغيير كلمة السر <span>›</span></button><button id="appLockBtn" class="setting">🔒 قفل التطبيق برمز <span id="appLockState">›</span></button><button id="privacyBtn" class="setting">🛡️ الخصوصية والأمان <span>›</span></button><button id="settingsBtn" class="setting">⚙️ الإعدادات <span>›</span></button></div><div class="settings-card"><div class="settings-title">الدردشة</div><button id="wallpaperBtn" class="setting">🖼️ خلفية الدردشة <span>›</span></button><button id="chatStyleBtn" class="setting">🎨 نمط الدردشة <span>›</span></button></div><div class="settings-card danger-card"><button id="logoutProfileBtn" class="setting">↪ تسجيل الخروج <span>›</span></button><button id="deleteAccountBtn" class="setting danger-text">🗑️ حذف الحساب نهائيًا <span>›</span></button></div></section></main><nav class="bottom-nav"><button data-page="homePage" class="nav active">💬<span>الدردشات</span></button><button data-page="storiesPage" class="nav">◯<span>الستوري</span></button><button data-page="sarhnyPage" class="nav">♡<span>صارحني</span></button><button data-page="callsPage" class="nav">☎<span>المكالمات</span></button></nav></section>
+<!-- Contacts --> <div id="contactsModal" class="modal hidden"><div class="modal-panel sheet"><header class="sheet-head"><div><h3>جهات الاتصال</h3><small class="muted">المستخدم على ComboApp يظهر له زر دردشة</small></div><button id="closeContactsBtn" class="icon-btn">✕</button></header><div class="contact-tools"><button id="pickContactsBtn" class="primary-inline contact-tool">📱 اختيار من الهاتف</button><button id="manualContactBtn" class="contact-tool secondary-inline">＋ إضافة يدويًا</button></div><input id="contactSearch" class="modal-search" placeholder="ابحث بالاسم أو الرقم..."><div id="manualContactForm" class="manual-form hidden"><input id="manualContactName" placeholder="اسم جهة الاتصال"><input id="manualContactPhone" type="tel" placeholder="رقم الموبايل"><button id="saveManualContactBtn" class="primary">حفظ جهة الاتصال</button></div><div id="contactsList" class="list contacts-list"></div></div></div>
+<!-- Story composer --> <div id="storyComposer" class="modal hidden"><div class="story-composer"><header class="story-top"><button id="closeStoryComposer" class="icon-btn">✕</button><strong>ستوري جديدة</strong><button id="storyPostTop" class="story-post-top">نشر</button></header><div id="storyCanvas" class="story-canvas text-mode"><textarea id="storyText" maxlength="500" placeholder="اكتب حاجة..."></textarea><div id="storyCanvasMedia" class="story-canvas-media"></div></div><div id="storyCaptionWrap" class="story-caption-wrap hidden"><input id="storyCaption" maxlength="500" placeholder="اكتب تعليقًا على الصورة أو الفيديو..."></div><div class="story-bottom-tools"><button id="storyTextModeBtn" class="story-tool active">Aa<span>نص</span></button><label class="story-tool">🖼️<span>اختر ملف<input id="storyMediaInput" type="file" accept="image/*,video/*,audio/*" hidden></span></label><label class="story-tool">📷<span>تصوير<input id="storyCameraInput" type="file" accept="image/*" capture="environment" hidden></span></label><button id="storyAudioBtn" class="story-tool">🎵<span>صوت</span></button></div><div class="story-colors"><button data-color="#0a1820" class="color-dot"></button><button data-color="#063f42" class="color-dot"></button><button data-color="#14356d" class="color-dot"></button><button data-color="#4b174d" class="color-dot"></button><button data-color="#6a3210" class="color-dot"></button><button data-color="#ffffff" class="color-dot"></button></div></div></div>
+<!-- Chat --> <div id="chatModal" class="modal hidden"><div class="modal-panel chat-panel" id="chatPanel"><header class="chat-head"><button id="closeChatBtn" class="icon-btn">←</button><div class="chat-person"><div id="chatAvatar" class="avatar mini-avatar">C</div><div><strong id="chatTitle">المحادثة</strong><small id="chatStatus">متصل</small></div></div><div class="chat-head-actions"><button id="voiceCallBtn" class="modern-call-btn" title="مكالمة صوتية">☎</button><button id="videoCallBtn" class="modern-call-btn" title="مكالمة فيديو">▣</button><button id="chatMenuBtn" class="icon-btn">⋮</button></div></header><div id="messagesBox" class="messages"></div><div class="composer"><button id="emojiBtn" class="composer-icon">☺</button><button id="attachContactBtn" class="composer-icon">＋</button><input id="messageInput" placeholder="اكتب رسالة..."><button id="sendMessageBtn" class="send-round">➤</button></div><div id="emojiPanel" class="emoji-panel hidden"><div class="emoji-tabs"><button data-tab="emoji" class="emoji-tab active">😊</button><button data-tab="gif" class="emoji-tab">GIF</button><button data-tab="sticker" class="emoji-tab">🩷</button></div><div id="emojiContent"></div></div></div></div>
+<!-- Chat menu --> <div id="chatMenuModal" class="modal hidden"><div class="action-sheet"><h3>خيارات المحادثة</h3><button id="menuArchiveBtn">🗂️ الأرشيف</button><button id="menuLockBtn">🔒 قفل المحادثة</button><button id="menuDeleteBtn" class="danger-text">🗑️ حذف</button><button id="menuReportBtn">⚠️ إبلاغ</button><button id="menuAddContactBtn">👤 إضافة جهة اتصال</button><button id="menuCancelBtn">إلغاء</button></div></div>
+<!-- Generic modal --> <div id="simpleModal" class="modal hidden"><div class="modal-panel small-panel"><h3 id="simpleTitle"></h3><div id="simpleBody"></div><div class="modal-actions"><button id="simpleOk" class="primary">حفظ</button><button id="simpleCancel" class="link-btn">إلغاء</button></div></div></div>
+<!-- Pin --> <div id="pinModal" class="modal hidden"><div class="modal-panel small-panel"><h3 id="pinTitle">قفل المحادثة</h3><p class="muted">اكتب رمزًا من 4 إلى 8 أرقام.</p><input id="pinInput" type="password" inputmode="numeric" maxlength="8" placeholder="••••"><button id="pinConfirmBtn" class="primary">تأكيد</button><button id="pinCancelBtn" class="link-btn">إلغاء</button></div></div><div id="lockScreen" class="lock-screen hidden"><div class="lock-box"><img class="lock-logo" src="logo.svg"><h2>ComboApp مقفول</h2><input id="unlockInput" type="password" inputmode="numeric" maxlength="8" placeholder="رمز القفل"><button id="unlockBtn" class="primary">فتح</button></div></div>
+<!-- Avatar file --> <input id="avatarFileInput" type="file" accept="image/*" hidden>
+<!-- Calls --> <div id="callModal" class="modal hidden"><div class="call-panel"><header><div><strong id="callTitle">مكالمة</strong><small id="callState">جارٍ الاتصال...</small><span id="callTimer">00:00</span></div><button id="endCallBtn" class="danger-btn">إنهاء</button></header><div class="video-stage"><video id="remoteVideo" autoplay playsinline></video><video id="localVideo" autoplay muted playsinline></video><div id="callAvatar" class="call-avatar">C</div></div><div class="call-controls"><button id="muteBtn" class="call-btn">🎙️</button><button id="cameraBtn" class="call-btn">📷</button></div></div></div><script src="app.js"></script></body></html>
