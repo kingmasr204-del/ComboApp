@@ -100,3 +100,251 @@ async function stopCall(sendHangup=true){const old=activeCall;const duration=cal
 function toggleMute(){if(!localStream)return;const t=localStream.getAudioTracks()[0];if(t){t.enabled=!t.enabled;$("muteBtn").textContent=t.enabled?"🎙️":"🔇"}}function toggleCamera(){if(!localStream)return;const t=localStream.getVideoTracks()[0];if(t){t.enabled=!t.enabled;$("cameraBtn").textContent=t.enabled?"📷":"🚫"}}
 async function loadCallHistory(){const {data,error}=await sb.from("call_history").select("*,profiles:peer_id(display_name,avatar_url)").eq("user_id",me.id).order("created_at",{ascending:false}).limit(50);if(error){$("callHistory").innerHTML="<div class='empty-card'>شغّل SQL الخاص بسجل المكالمات أولًا.</div>";return}$("callHistory").innerHTML=(data||[]).map(c=>`<div class="chat-item"><div class="avatar">${c.profiles?.avatar_url?`<img src="${esc(c.profiles.avatar_url)}">`:initials(c.profiles?.display_name)}</div><div class="chat-info"><strong>${esc(c.profiles?.display_name||"مستخدم")}</strong><small>${c.call_type==="video"?"فيديو":"صوت"} · ${c.status==="missed"?"مكالمه فائتة":"انتهت"} · ${fmtDuration(c.duration_seconds||0)}</small></div><span class="time">${fmt(c.created_at)}</span></div>`).join("")||"<div class='empty-card'>مفيش مكالمات لسه.</div>"}
 init();
+/* ===== ComboApp V2 functional fixes ===== */
+let storyPrivacyMode='contacts',storyExcludedIds=[],storySelectedIds=[];
+let pendingIceCandidates=[];
+
+function userOnlineText(lastSeen){
+  if(!lastSeen) return 'آخر ظهور غير متاح';
+  const ms=Date.now()-new Date(lastSeen).getTime();
+  if(ms<120000) return 'متصل';
+  const d=new Date(lastSeen);
+  return 'آخر ظهور منذ '+d.toLocaleString('ar-EG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+async function touchLastSeen(){
+  if(!me) return;
+  const now=new Date().toISOString();
+  me.last_seen=now;
+  await sb.from('profiles').update({last_seen:now}).eq('id',me.id);
+}
+
+function enhanceUI(){
+  const a=$('attachContactBtn'); if(a) a.onclick=openAttachmentSheet;
+  const title=$('chatTitle'); if(title) title.onclick=()=>{if(activeChat)openOtherProfile(activeChat.user)};
+  const avatar=$('chatAvatar'); if(avatar) avatar.onclick=()=>{if(activeChat)openOtherProfile(activeChat.user)};
+  if($('closeOtherProfileBtn')) $('closeOtherProfileBtn').onclick=()=>closeOtherProfile();
+  if($('otherVoiceBtn')) $('otherVoiceBtn').onclick=()=>{closeOtherProfile();startCall(false)};
+  if($('otherVideoBtn')) $('otherVideoBtn').onclick=()=>{closeOtherProfile();startCall(true)};
+  if($('otherSarhnyBtn')) $('otherSarhnyBtn').onclick=()=>{if(activeChat){$('sarhnyUsername').value=activeChat.user.username||'';closeOtherProfile();closeChat();go('sarhnyPage')}};
+  if($('otherAddBtn')) $('otherAddBtn').onclick=()=>addActiveContact();
+  if($('otherDeleteChatBtn')) $('otherDeleteChatBtn').onclick=()=>{closeOtherProfile();deleteChat()};
+  if($('attachCancelBtn')) $('attachCancelBtn').onclick=closeAttachmentSheet;
+  if($('attachPhotoVideoBtn')) $('attachPhotoVideoBtn').onclick=()=>pickChatFile('media');
+  if($('attachAudioBtn')) $('attachAudioBtn').onclick=()=>pickChatFile('audio');
+  if($('attachCameraBtn')) $('attachCameraBtn').onclick=()=>pickChatFile('camera');
+  if($('chatMediaInput')) $('chatMediaInput').onchange=e=>handleChatFile(e);
+  if($('chatAudioInput')) $('chatAudioInput').onchange=e=>handleChatFile(e);
+  if($('chatCameraInput')) $('chatCameraInput').onchange=e=>handleChatFile(e);
+  if($('storyPrivacyBtn')) $('storyPrivacyBtn').onclick=openStoryPrivacy;
+  if($('callAudioUnlockBtn')) $('callAudioUnlockBtn').onclick=async()=>{try{await $('remoteVideo').play();$('callAudioUnlockBtn').classList.add('hidden')}catch(e){}};
+  setInterval(()=>{if(me)touchLastSeen();},30000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)touchLastSeen()});
+}
+
+async function openOtherProfile(u){
+  if(!u)return;
+  $('otherProfileName').textContent=u.display_name||'مستخدم';
+  $('otherProfileUsername').textContent=u.username?'@'+u.username:'';
+  $('otherProfileStatus').textContent=userOnlineText(u.last_seen);
+  $('otherProfileAvatar').innerHTML=u.avatar_url?`<img src="${esc(u.avatar_url)}">`:esc(initials(u.display_name));
+  $('otherProfileModal').classList.remove('hidden');
+}
+function closeOtherProfile(){if($('otherProfileModal'))$('otherProfileModal').classList.add('hidden')}
+
+async function openChat(c){
+  const otherId=c.user1_id===me.id?c.user2_id:c.user1_id;
+  const {data:u}=await sb.from('profiles').select('*').eq('id',otherId).single();
+  const {data:s}=await sb.from('conversation_settings').select('*').eq('conversation_id',c.id).eq('user_id',me.id).maybeSingle();
+  if(s?.locked){pinMode='unlockChat';pendingLockedConversation=c;window._lockedSetting=s;$('pinTitle').textContent='فتح المحادثة';$('pinConfirmBtn').textContent='فتح';$('pinModal').classList.remove('hidden');return}
+  activeChat={conversation:c,user:u};
+  $('chatTitle').textContent=u?.display_name||'محادثة';
+  $('chatStatus').textContent=userOnlineText(u?.last_seen);
+  setChatAvatar(u);$('chatModal').classList.remove('hidden');
+  await subscribeCallRoom(c.id);await markDelivered();await loadMessages();await markRead();applyChatWallpaper();
+}
+
+function messageMediaMarkup(m){
+  if(!m.media_path)return '';
+  const safeMime=esc(m.media_mime||'');
+  return `<div class="message-media" data-path="${esc(m.media_path)}" data-mime="${safeMime}"><div class="media-loading">تحميل الوسائط…</div></div>`;
+}
+async function hydrateMessageMedia(){
+  document.querySelectorAll('.message-media[data-path]').forEach(async el=>{
+    const path=el.dataset.path,mime=el.dataset.mime||'';
+    const r=await sb.storage.from('chat-media').createSignedUrl(path,3600);
+    if(r.error){el.innerHTML='<div class="muted">تعذر فتح الملف</div>';return}
+    const url=esc(r.data.signedUrl);
+    if(mime.startsWith('image/'))el.innerHTML=`<img src="${url}" alt="صورة" loading="lazy">`;
+    else if(mime.startsWith('video/'))el.innerHTML=`<video src="${url}" controls playsinline></video>`;
+    else if(mime.startsWith('audio/'))el.innerHTML=`<audio src="${url}" controls></audio>`;
+    else el.innerHTML=`<a href="${url}" target="_blank" rel="noopener">فتح الملف</a>`;
+  });
+}
+async function loadMessages(){
+  if(!activeChat)return;
+  const {data,error}=await sb.from('messages').select('*').eq('conversation_id',activeChat.conversation.id).order('created_at');
+  if(error){$('messagesBox').innerHTML='<div class="muted">تعذر تحميل الرسائل</div>';return}
+  $('messagesBox').innerHTML=(data||[]).map(m=>{
+    let ticks='';
+    if(m.sender_id===me.id) ticks=m.read_at?'<span class="ticks read">✓✓</span>':m.delivered_at?'<span class="ticks">✓✓</span>':'<span class="ticks">✓</span>';
+    const body=m.media_path?messageMediaMarkup(m):(m.content?`<div class="message-text">${esc(m.content)}</div>`:'');
+    return `<div class="bubble ${m.sender_id===me.id?'mine':'theirs'}">${body}<small>${fmt(m.created_at)} ${ticks}</small></div>`;
+  }).join('')||'<div class="empty-card">ابدأ المحادثة 👋</div>';
+  $('messagesBox').scrollTop=$('messagesBox').scrollHeight;
+  await hydrateMessageMedia();
+}
+
+async function sendMessage(){
+  const content=$('messageInput').value.trim();
+  if(!content||!activeChat)return;
+  const r=await sb.from('messages').insert({sender_id:me.id,receiver_id:activeChat.user.id,content,conversation_id:activeChat.conversation.id,message_type:'text'});
+  if(r.error)return toast('تعذر إرسال الرسالة: '+r.error.message);
+  $('messageInput').value='';await loadMessages();await loadChats();
+}
+
+function openAttachmentSheet(){if(!activeChat)return toast('افتح محادثة أولًا');$('attachmentModal').classList.remove('hidden')}
+function closeAttachmentSheet(){$('attachmentModal').classList.add('hidden')}
+function pickChatFile(kind){
+  closeAttachmentSheet();
+  const id=kind==='audio'?'chatAudioInput':kind==='camera'?'chatCameraInput':'chatMediaInput';
+  $(id).click();
+}
+async function handleChatFile(e){
+  const file=e.target.files?.[0];e.target.value='';
+  if(!file||!activeChat)return;
+  const type=file.type.startsWith('image/')?'image':file.type.startsWith('video/')?'video':file.type.startsWith('audio/')?'audio':null;
+  if(!type)return toast('نوع الملف غير مدعوم');
+  if(file.size>35*1024*1024)return toast('الملف كبير جدًا — الحد 35 ميجا');
+  const path=`${activeChat.conversation.id}/${me.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const up=await sb.storage.from('chat-media').upload(path,file,{upsert:false,contentType:file.type});
+  if(up.error)return toast('تعذر رفع الملف. شغّل SQL الخاص بوسائط الشات');
+  const r=await sb.from('messages').insert({sender_id:me.id,receiver_id:activeChat.user.id,content:'',conversation_id:activeChat.conversation.id,message_type:type,media_path:path,media_mime:file.type});
+  if(r.error){await sb.storage.from('chat-media').remove([path]);return toast('تعذر إرسال الملف');}
+  await loadMessages();await loadChats();
+}
+
+const COMBO_EMOJIS='😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫡 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 👍 👎 👌 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 🤏 💪 🙏 👏 🙌 🫶 👀 👄 💋 🔥 ⭐ 🌟 ✨ 💫 💥 🎉 🎊 🎈 🎁 👑 💎 🚀 ⚡ 💯 😂 😍 🤍 💚'.split(' ');
+function toggleEmoji(){$('emojiPanel').classList.toggle('hidden');if(!$('emojiPanel').classList.contains('hidden'))showEmojiTab('emoji')}
+function showEmojiTab(tab){
+  document.querySelectorAll('.emoji-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  const box=$('emojiContent');
+  if(tab==='emoji'){
+    box.innerHTML=`<div class="native-emoji-grid">${COMBO_EMOJIS.map(x=>`<button type="button">${x}</button>`).join('')}</div>`;
+    box.querySelectorAll('button').forEach(b=>b.onclick=()=>insertAtCursor($('messageInput'),b.textContent));
+  }else if(tab==='sticker'){
+    box.innerHTML='<div class="sticker-grid">'+['😍','😂','🥰','😭','😎','🔥','❤️','👍','🎉','🤍','👑','💚','🤣','🥺','😱','🥳'].map(x=>`<button type="button">${x}</button>`).join('')+'</div>';
+    box.querySelectorAll('button').forEach(b=>b.onclick=()=>sendMessageContent(b.textContent));
+  }else{
+    box.innerHTML='<div class="gif-grid"><button type="button">😂 GIF</button><button type="button">❤️ GIF</button><button type="button">🔥 GIF</button><button type="button">🎉 GIF</button><p class="muted">GIF الحقيقي يحتاج ربط Tenor أو GIPHY API.</p></div>';
+  }
+}
+function insertAtCursor(input,text){const s=input.selectionStart??input.value.length,e=input.selectionEnd??input.value.length;input.value=input.value.slice(0,s)+text+input.value.slice(e);input.focus();input.selectionStart=input.selectionEnd=s+text.length}
+function sendMessageContent(text){$('messageInput').value=text;$('emojiPanel').classList.add('hidden');sendMessage()}
+
+async function syncLocalContactsToDb(){
+  const list=readSavedContacts();
+  if(!list.length)return;
+  const nums=list.map(x=>x.phone).filter(Boolean);if(!nums.length)return;
+  const {data}=await sb.from('profiles').select('id,phone,display_name').in('phone',nums);const rows=(data||[]).filter(p=>p.id!==me.id).map(p=>({owner_id:me.id,contact_id:p.id,phone:p.phone,display_name:p.display_name}));
+  if(rows.length)await sb.from('user_contacts').upsert(rows,{onConflict:'owner_id,contact_id'});
+}
+async function getAudienceCandidates(){
+  await syncLocalContactsToDb();
+  const ids=new Set();
+  const {data:contacts}=await sb.from('user_contacts').select('contact_id,display_name').eq('owner_id',me.id);
+  (contacts||[]).forEach(x=>x.contact_id&&ids.add(x.contact_id));
+  const {data:cs}=await sb.from('conversations').select('user1_id,user2_id,updated_at').or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`).order('updated_at',{ascending:false}).limit(50);
+  (cs||[]).forEach(c=>ids.add(c.user1_id===me.id?c.user2_id:c.user1_id));
+  ids.delete(me.id);
+  if(!ids.size)return [];
+  const {data:profiles}=await sb.from('profiles').select('id,display_name,username,phone,avatar_url').in('id',[...ids]);
+  return profiles||[];
+}
+async function openStoryPrivacy(){
+  const candidates=await getAudienceCandidates();
+  const list=candidates.map(u=>`<label class="audience-row"><input type="checkbox" data-audience-id="${u.id}" ${storySelectedIds.includes(u.id)?'checked':''}><span class="avatar tiny">${u.avatar_url?`<img src="${esc(u.avatar_url)}">`:initials(u.display_name)}</span><span>${esc(u.display_name)} <small>@${esc(u.username||'')}</small></span></label>`).join('')||'<p class="muted">أضف جهات اتصال أو ابدأ دردشة أولًا.</p>';
+  openSimple('خصوصية الحالة',`<div class="privacy-options"><button class="choice-btn" data-story-mode="everyone">🌍 الجميع</button><button class="choice-btn" data-story-mode="contacts">👥 جهات اتصالي</button><button class="choice-btn" data-story-mode="contacts_except">👥 جهات اتصالي ما عدا...</button><button class="choice-btn" data-story-mode="recent">💬 آخر الدردشات</button><button class="choice-btn" data-story-mode="selected">⭐ المشاركة مع...</button></div><div id="storyAudienceList" class="audience-list ${['contacts_except','selected'].includes(storyPrivacyMode)?'':'hidden'}">${list}</div><button id="saveStoryPrivacyBtn" class="primary" style="margin-top:10px">حفظ الخصوصية</button>`,'إغلاق');
+  document.querySelectorAll('[data-story-mode]').forEach(b=>b.onclick=()=>{storyPrivacyMode=b.dataset.storyMode;document.querySelectorAll('[data-story-mode]').forEach(x=>x.classList.toggle('selected',x===b));$('storyAudienceList').classList.toggle('hidden',!['contacts_except','selected'].includes(storyPrivacyMode))});
+  if($('saveStoryPrivacyBtn'))$('saveStoryPrivacyBtn').onclick=()=>{storyExcludedIds=[...document.querySelectorAll('[data-audience-id]:checked')].map(x=>x.dataset.audienceId).filter(Boolean);storySelectedIds=[...storyExcludedIds];updateStoryPrivacyLabel();closeSimple()};
+}
+function updateStoryPrivacyLabel(){const labels={everyone:'الجميع',contacts:'جهات اتصالي',contacts_except:'جهات اتصالي ما عدا...',recent:'آخر الدردشات',selected:'المشاركة مع...'};$('storyPrivacyBtn').textContent='👥 خصوصية الحالة: '+labels[storyPrivacyMode]}
+function openStoryComposer(){
+  $('storyComposer').classList.remove('hidden');$('storyCanvas').classList.add('text-mode');$('storyCanvas').classList.remove('media-mode');$('storyText').value='';$('storyCaption').value='';$('storyCanvasMedia').innerHTML='';$('storyCaptionWrap').classList.add('hidden');storyFile=null;storyPrivacyMode='contacts';storyExcludedIds=[];storySelectedIds=[];updateStoryPrivacyLabel();
+  if(storyObjectUrl)URL.revokeObjectURL(storyObjectUrl);storyObjectUrl=null;
+}
+function handleStoryFile(e){const f=e.target.files?.[0];if(!f)return;const type=storyType(f);if(!type)return toast('اختار صورة أو فيديو أو صوت');storyFile=f;if(storyObjectUrl)URL.revokeObjectURL(storyObjectUrl);storyObjectUrl=URL.createObjectURL(f);$('storyCanvas').classList.remove('text-mode');$('storyCanvas').classList.add('media-mode');$('storyText').value='';$('storyCaptionWrap').classList.remove('hidden');$('storyCanvasMedia').innerHTML=type==='image'?`<img src="${storyObjectUrl}">`:type==='video'?`<video src="${storyObjectUrl}" controls autoplay muted playsinline></video>`:`<div class="audio-preview"><div class="music-disc">♫</div><strong>${esc(f.name)}</strong><audio src="${storyObjectUrl}" controls></audio></div>`}
+async function publishStory(){
+  const text=$('storyText').value.trim(),caption=$('storyCaption').value.trim(),file=storyFile;if(!text&&!file)return toast('اكتب حاجة أو اختار صورة/فيديو/صوت');
+  await syncLocalContactsToDb();let media_path=null,media_type='text';
+  if(file){media_type=storyType(file);const path=`${me.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from('stories').upload(path,file,{upsert:false});if(up.error)return toast('تعذر رفع ملف الستوري: '+up.error.message);media_path=path}
+  const payload={user_id:me.id,content:file?caption:text,media_path,media_type,expires_at:new Date(Date.now()+86400000).toISOString(),visibility:storyPrivacyMode==='contacts_except'?'contacts':storyPrivacyMode,excluded_user_ids:storyPrivacyMode==='contacts_except'?storyExcludedIds:[],selected_user_ids:storyPrivacyMode==='selected'?storySelectedIds:[]};
+  const {error}=await sb.from('stories').insert(payload);if(error){if(media_path)await sb.storage.from('stories').remove([media_path]);return toast('تعذر نشر الستوري: '+error.message)}
+  closeStoryComposer();toast('تم نشر الستوري');await loadStories();
+}
+async function loadStories(){
+  const {data,error}=await sb.from('stories').select('*,profiles(display_name,username,avatar_url)').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});
+  if(error){$('storiesList').innerHTML='<div class="empty-card">تعذر تحميل الحالات — شغّل SQL الخاص بخصوصية الحالات.</div>';return}
+  const rows=data||[],urls={};for(const s of rows)if(s.media_path){const r=await sb.storage.from('stories').createSignedUrl(s.media_path,3600);if(!r.error)urls[s.id]=r.data.signedUrl}
+  $('storiesList').innerHTML=rows.map(s=>{const u=urls[s.id];let media='';if(u&&s.media_type==='image')media=`<div class="story-media"><img src="${esc(u)}"></div>`;if(u&&s.media_type==='video')media=`<div class="story-media"><video src="${esc(u)}" controls playsinline></video></div>`;if(u&&s.media_type==='audio')media=`<div class="story-media"><div class="story-audio-name">🎵 ${esc(s.content||'ملف صوتي')}</div><audio src="${esc(u)}" controls></audio></div>`;return `<article class="story-item"><div class="story-author"><div class="avatar">${s.profiles?.avatar_url?`<img src="${esc(s.profiles.avatar_url)}">`:initials(s.profiles?.display_name)}</div><div><strong>${esc(s.profiles?.display_name||'مستخدم')}</strong><small>${s.user_id===me.id?'حالتي':s.visibility==='everyone'?'الجميع':'مشاركة خاصة'} · ${fmt(s.created_at)}</small></div></div>${media}${s.content&&s.media_type!=='audio'?`<p class="story-caption">${esc(s.content)}</p>`:''}</article>`}).join('')||'<div class="empty-card">مفيش حالات متاحة ليك حاليًا.</div>';
+}
+
+function createPeer(){
+  const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun2.l.google.com:19302'}]});
+  if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+  pc.ontrack=async e=>{const stream=e.streams?.[0]||new MediaStream([e.track]);$('remoteVideo').srcObject=stream;$('callState').textContent='متصل';$('callAvatar').classList.add('hidden');try{await $('remoteVideo').play();$('callAudioUnlockBtn').classList.add('hidden')}catch(err){$('callAudioUnlockBtn').classList.remove('hidden')}startCallTimerIfNeeded()};
+  pc.onicecandidate=e=>{if(e.candidate&&activeCall)sendCallSignal(activeCall.conversationId,{type:'ice',callId:activeCall.id,from:me.id,to:activeCall.peerId,candidate:e.candidate})};
+  pc.onconnectionstatechange=()=>{if(pc.connectionState==='connected'){$('callState').textContent='متصل';startCallTimerIfNeeded()}if(['failed','disconnected'].includes(pc.connectionState))$('callState').textContent='انقطع الاتصال'};
+  return pc;
+}
+async function subscribeCallRooms(){for(const c of callChannels.values())await sb.removeChannel(c);callChannels.clear();const {data}=await sb.from('conversations').select('id').or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`);for(const c of data||[])subscribeCallRoom(c.id)}
+async function subscribeCallRoom(id){if(callChannels.has(id))return;const ch=sb.channel('call-'+id,{config:{broadcast:{ack:true}}});ch.on('broadcast',{event:'signal'},async({payload})=>{if(payload?.to===me.id)try{await handleSignal(payload)}catch(e){console.error(e)}});await ch.subscribe();callChannels.set(id,ch)}
+async function sendCallSignal(id,payload){const ch=callChannels.get(id);if(!ch){await subscribeCallRoom(id)}const c=callChannels.get(id);if(c)await c.send({type:'broadcast',event:'signal',payload})}
+function resetCallUI(){if($('remoteVideo'))$('remoteVideo').srcObject=null;if($('localVideo'))$('localVideo').srcObject=null;$('callAvatar').classList.remove('hidden');$('callAudioUnlockBtn')?.classList.add('hidden');$('muteBtn').textContent='🎙️';$('cameraBtn').textContent='📷'}
+function startCallTimerIfNeeded(startAt){if(callTimer||!activeCall)return;if(!callStartedAt)callStartedAt=startAt||Date.now();$('callTimer').textContent=fmtDuration((Date.now()-callStartedAt)/1000);callTimer=setInterval(()=>{$('callTimer').textContent=fmtDuration((Date.now()-callStartedAt)/1000)},1000)}
+async function startCall(video){
+  if(!activeChat)return toast('افتح محادثة أولًا');
+  if(!navigator.mediaDevices?.getUserMedia)return toast('المتصفح لا يدعم الكاميرا والميكروفون');
+  try{
+    await subscribeCallRoom(activeChat.conversation.id);activeCall={id:crypto.randomUUID(),video,initiator:true,peerId:activeChat.user.id,conversationId:activeChat.conversation.id};pendingIceCandidates=[];callStartedAt=null;
+    localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:video?{facingMode:'user',width:{ideal:1280},height:{ideal:720}}:false});
+    $('localVideo').srcObject=localStream;$('localVideo').classList.toggle('hidden',!video);$('remoteVideo').classList.toggle('hidden',!video);$('remoteVideo').muted=false;$('remoteVideo').volume=1;$('callAvatar').textContent=initials(activeChat.user.display_name);$('callTitle').textContent=video?'مكالمة فيديو':'مكالمة صوتية';$('callState').textContent='جارٍ الاتصال...';$('callTimer').textContent='00:00';$('callModal').classList.remove('hidden');
+    peer=createPeer();const offer=await peer.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:video});await peer.setLocalDescription(offer);await sendCallSignal(activeCall.conversationId,{type:'offer',callId:activeCall.id,from:me.id,to:activeCall.peerId,video,offer});
+  }catch(e){console.error(e);await stopCall(false);toast(e.name==='NotAllowedError'?'اسمح للكاميرا والميكروفون من إعدادات المتصفح':'تعذر بدء المكالمة: '+(e.message||''))}
+}
+async function handleSignal(p){
+  if(p.type==='offer'){
+    if(activeCall)return;
+    const {data:u}=await sb.from('profiles').select('id,display_name,avatar_url').eq('id',p.from).single();
+    const accept=confirm('مكالمة واردة من '+(u?.display_name||'مستخدم')+'. موافق؟');
+    if(!accept){await sendCallSignal(p.conversationId,{type:'reject',callId:p.callId,from:me.id,to:p.from});return}
+    activeCall={id:p.callId,video:!!p.video,initiator:false,peerId:p.from,conversationId:p.conversationId};pendingIceCandidates=[];callStartedAt=null;
+    try{
+      localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:p.video?{facingMode:'user',width:{ideal:1280},height:{ideal:720}}:false});
+      $('localVideo').srcObject=localStream;$('localVideo').classList.toggle('hidden',!p.video);$('remoteVideo').classList.toggle('hidden',!p.video);$('remoteVideo').muted=false;$('remoteVideo').volume=1;$('callTitle').textContent=p.video?'مكالمة فيديو':'مكالمة صوتية';$('callState').textContent='جارٍ الاتصال...';$('callTimer').textContent='00:00';$('callAvatar').textContent=initials(u?.display_name);$('callModal').classList.remove('hidden');
+      peer=createPeer();await peer.setRemoteDescription(new RTCSessionDescription(p.offer));
+      for(const c of pendingIceCandidates)try{await peer.addIceCandidate(c)}catch(e){}pendingIceCandidates=[];
+      const answer=await peer.createAnswer({offerToReceiveAudio:true,offerToReceiveVideo:!!p.video});await peer.setLocalDescription(answer);const startedAt=Date.now();
+      await sendCallSignal(p.conversationId,{type:'answer',callId:p.callId,from:me.id,to:p.from,answer,startedAt});startCallTimerIfNeeded(startedAt);
+    }catch(e){console.error(e);await stopCall(false);toast('تعذر تشغيل المكالمة الواردة')}
+    return;
+  }
+  if(!activeCall||p.callId!==activeCall.id)return;
+  if(p.type==='answer'&&peer){await peer.setRemoteDescription(new RTCSessionDescription(p.answer));for(const c of pendingIceCandidates)try{await peer.addIceCandidate(c)}catch(e){}pendingIceCandidates=[];$('callState').textContent='متصل';startCallTimerIfNeeded(p.startedAt||Date.now());return}
+  if(p.type==='ice'&&p.candidate){if(peer?.remoteDescription?.type){try{await peer.addIceCandidate(new RTCIceCandidate(p.candidate))}catch(e){}}else pendingIceCandidates.push(new RTCIceCandidate(p.candidate));return}
+  if(p.type==='reject'){toast('تم رفض المكالمة');await stopCall(false);return}
+  if(p.type==='hangup'){toast('انتهت المكالمة');await stopCall(false);return}
+}
+async function stopCall(sendHangup=true){
+  const old=activeCall;const duration=callStartedAt?Math.max(0,Math.floor((Date.now()-callStartedAt)/1000)):0;
+  if(sendHangup&&old)try{await sendCallSignal(old.conversationId,{type:'hangup',callId:old.id,from:me?.id,to:old.peerId})}catch(e){}
+  if(old&&me)await sb.from('call_history').insert({user_id:me.id,conversation_id:old.conversationId,peer_id:old.peerId,call_type:old.video?'video':'audio',status:duration?'ended':'missed',duration_seconds:duration});
+  if(callTimer)clearInterval(callTimer);callTimer=null;callStartedAt=null;if(peer){peer.ontrack=null;peer.close();peer=null}if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}activeCall=null;pendingIceCandidates=[];$('callModal').classList.add('hidden');resetCallUI();await loadCallHistory();
+}
+async function loadCallHistory(){
+  const {data,error}=await sb.from('call_history').select('*,profiles:peer_id(display_name,avatar_url)').eq('user_id',me.id).order('created_at',{ascending:false}).limit(50);
+  if(error){$('callHistory').innerHTML=`<div class="empty-card"><h3>سجل المكالمات محتاج SQL</h3><p class="muted">شغّل ملف COMBOAPP_V2_FIXES.sql مرة واحدة في Supabase.</p></div>`;return}
+  $('callHistory').innerHTML=(data||[]).map(c=>`<div class="chat-item"><div class="avatar">${c.profiles?.avatar_url?`<img src="${esc(c.profiles.avatar_url)}">`:initials(c.profiles?.display_name)}</div><div class="chat-info"><strong>${esc(c.profiles?.display_name||'مستخدم')}</strong><small>${c.call_type==='video'?'فيديو':'صوت'} · ${c.status==='missed'?'مكالمة فائتة':'انتهت'} · ${fmtDuration(c.duration_seconds||0)}</small></div><span class="time">${fmt(c.created_at)}</span></div>`).join('')||'<div class="empty-card">مفيش مكالمات لسه.</div>';
+}
+
+// Run the small UI wiring after the original app initialization has bound its controls.
+enhanceUI();
