@@ -6,7 +6,7 @@ let session=null, me=null, activeChat=null, pinMode=null, messageChannel=null, p
 let peer=null, localStream=null, activeCall=null, callChannels=new Map(), pendingIce=[];
 const $=id=>document.getElementById(id);
 const APP_ORIGIN = window.location.origin;
-const APP_BASE_URL = new URL('./', window.location.href).href;
+const APP_BASE_URL = 'https://kingmasr204-del.github.io/ComboApp/';
 
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show"),2800)}
 function initials(name="C"){return name.trim().slice(0,1).toUpperCase()||"C"}
@@ -43,7 +43,7 @@ function bind(){
   $("loginBtn").onclick=login; $("signupBtn").onclick=signup; $("forgotBtn").onclick=resetPassword;
   $("saveNewPasswordBtn").onclick=saveNewPassword;
   $("logoutBtn").onclick=async()=>{await stopCall();await sb.auth.signOut();location.reload()};
-  $("profileBtn").onclick=()=>go("profilePage");
+  $("profileBtn").onclick=()=>go("profilePage"); $("notifyBtn").onclick=requestNotifications;
   document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>go(b.dataset.page));
   $("userSearch").oninput=searchUsers; $("newChatBtn").onclick=()=>$("userSearch").focus(); $("refreshBtn").onclick=loadChats;
   $("archivedBtn").onclick=()=>{go("archivedPage");loadArchived()}; $("backHomeBtn").onclick=()=>go("homePage");
@@ -65,12 +65,12 @@ async function login(){
   toast("تم تسجيل الدخول");
 }
 async function signup(){
-  const name=$("signupName").value.trim(),username=$("signupUsername").value.trim().toLowerCase(),email=$("signupEmail").value.trim(),p=$("signupPassword").value,p2=$("signupPassword2").value;
+  const name=$("signupName").value.trim(),username=$("signupUsername").value.trim().toLowerCase(),email=$("signupEmail").value.trim(),phone=normalizePhone($("signupPhone").value),p=$("signupPassword").value,p2=$("signupPassword2").value;
   if(!name||!username||!email||!p)return toast("كمّل البيانات");
   if(!/^[a-z0-9_\.]{3,24}$/.test(username))return toast("اسم المستخدم: حروف إنجليزية وأرقام و _ فقط");
   if(p.length<6)return toast("كلمة السر لازم تكون 6 أحرف على الأقل");
   if(p!==p2)return toast("تأكيد كلمة السر غير مطابق");
-  const {data,error}=await sb.auth.signUp({email,password:p,options:{emailRedirectTo:APP_BASE_URL,data:{display_name:name,username}}});
+  const {data,error}=await sb.auth.signUp({email,password:p,options:{emailRedirectTo:APP_BASE_URL,data:{display_name:name,username,phone}}});
   if(error)return toast(error.message.includes("already")?"البريد مستخدم بالفعل":error.message);
   $("signupPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden");
   toast(data.session?"تم إنشاء الحساب":"تم إنشاء الحساب. افتح رسالة تأكيد البريد ثم سجّل الدخول.");
@@ -97,12 +97,12 @@ async function enterApp(){
   if(!data){
     // Normally created automatically by the database trigger. This fallback is only for old accounts.
     const meta=session.user.user_metadata||{};
-    const fallback={id:session.user.id,display_name:meta.display_name||"مستخدم",username:meta.username||session.user.email.split("@")[0].replace(/[^a-z0-9_]/gi,"").slice(0,24)||"user",avatar_url:null};
+    const fallback={id:session.user.id,display_name:meta.display_name||"مستخدم",username:meta.username||session.user.email.split("@")[0].replace(/[^a-z0-9_]/gi,"").slice(0,24)||"user",phone:meta.phone||null,avatar_url:null};
     const r=await sb.from("profiles").upsert(fallback,{onConflict:"id"}); if(r.error)return toast("تعذر تجهيز ملف الحساب");
     me=fallback;
   }else me=data;
   $("authScreen").classList.add("hidden");$("appScreen").classList.remove("hidden");
-  await loadProfile(); await loadChats(); await loadStories(); await loadSarhnyInbox(); await loadCallHistory(); await checkAppLock(); subscribeMessages(); await subscribeCallRooms();
+  await loadProfile(); await loadChats(); await loadStories(); await loadSarhnyInbox(); await requestNotifications(); await loadCallHistory(); await checkAppLock(); subscribeMessages(); await subscribeCallRooms();
 }
 function go(page){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(page).classList.add("active");document.querySelectorAll(".nav").forEach(x=>x.classList.toggle("active",x.dataset.page===page));if(page==="homePage")loadChats();if(page==="storiesPage")loadStories();if(page==="sarhnyPage")loadSarhnyInbox();if(page==="callsPage")loadCallHistory();}
 
@@ -123,14 +123,35 @@ async function getSettings(){const {data}=await sb.from("conversation_settings")
 async function loadChats(){return renderChats(false)}
 async function loadArchived(){return renderChats(true)}
 async function renderChats(archived){
-  const target=archived?$("archivedList"):$("chatList"); const {data,error}=await sb.from("conversations").select("*").or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`).order("updated_at",{ascending:false});
+  const target=archived?$("archivedList"):$("chatList");
+  const {data,error}=await sb.from("conversations").select("*").or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`).order("updated_at",{ascending:false});
   if(error){target.innerHTML="<div class='empty-card'>تعذر تحميل المحادثات</div>";return}
-  const ids=[...new Set((data||[]).map(c=>c.user1_id===me.id?c.user2_id:c.user1_id))]; if(!ids.length){target.innerHTML="<div class='empty-card'>💬<h3>مفيش محادثات</h3></div>";return}
-  const pr=await sb.from("profiles").select("id,username,display_name").in("id",ids),map=Object.fromEntries((pr.data||[]).map(x=>[x.id,x])); const sm=await getSettings();
-  const rows=(data||[]).filter(c=>Boolean(sm[c.id]?.archived)===archived);
-  target.innerHTML=rows.map(c=>{const u=map[c.user1_id===me.id?c.user2_id:c.user1_id]||{};return `<div class="chat-item" data-cid="${c.id}"><div class="avatar">${initials(u.display_name)}</div><div class="chat-info"><strong>${esc(u.display_name||"مستخدم")}</strong><small>@${esc(u.username||"")}</small></div>${sm[c.id]?.locked?"🔒":""}<span class="time">${fmt(c.updated_at||c.created_at)}</span></div>`}).join("")||"<div class='empty-card'>مفيش محادثات هنا.</div>";
+  const rowsBase=(data||[]);
+  if(!rowsBase.length){target.innerHTML="<div class='empty-card'>💬<h3>مفيش محادثات</h3><p class='muted'>اضغط ＋ وابدأ محادثة جديدة.</p></div>";updateChatBadge(0);return}
+  const ids=[...new Set(rowsBase.map(c=>c.user1_id===me.id?c.user2_id:c.user1_id))];
+  const pr=await sb.from("profiles").select("id,username,display_name,phone").in("id",ids),map=Object.fromEntries((pr.data||[]).map(x=>[x.id,x]));
+  const sm=await getSettings();
+  const msgRes=await sb.from("messages").select("conversation_id,content,created_at,sender_id,receiver_id,read_at").in("conversation_id",rowsBase.map(c=>c.id)).order("created_at",{ascending:false}).limit(2000);
+  const latest={}, unread={};
+  for(const m of msgRes.data||[]){
+    if(!latest[m.conversation_id]) latest[m.conversation_id]=m;
+    if(m.receiver_id===me.id && !m.read_at) unread[m.conversation_id]=(unread[m.conversation_id]||0)+1;
+  }
+  const rows=rowsBase.filter(c=>Boolean(sm[c.id]?.archived)===archived);
+  target.innerHTML=rows.map(c=>{
+    const u=map[c.user1_id===me.id?c.user2_id:c.user1_id]||{}; const last=latest[c.id]; const n=unread[c.id]||0;
+    const preview=last ? (last.sender_id===me.id?"أنت: ":"")+esc(last.content||"") : "ابدأ المحادثة";
+    return `<div class="chat-item" data-cid="${c.id}"><div class="avatar">${initials(u.display_name)}</div><div class="chat-info"><strong>${esc(u.display_name||"مستخدم")}</strong><small>${preview}</small></div><div class="chat-meta">${sm[c.id]?.locked?"🔒 ":""}<span class="time">${last?fmt(last.created_at):fmt(c.updated_at||c.created_at)}</span>${n?`<span class="badge">${n>99?"99+":n}</span>`:""}</div></div>`
+  }).join("")||"<div class='empty-card'>مفيش محادثات هنا.</div>";
   target.querySelectorAll(".chat-item").forEach(el=>el.onclick=()=>openChatById(el.dataset.cid));
+  updateChatBadge(Object.values(unread).reduce((a,b)=>a+b,0));
 }
+function updateChatBadge(count){
+  const nav=document.querySelector('.bottom-nav .nav[data-page="homePage"]'); if(!nav)return;
+  let b=nav.querySelector('.nav-badge'); if(!b){b=document.createElement('span');b.className='nav-badge';nav.appendChild(b)}
+  b.textContent=count>99?'99+':String(count); b.classList.toggle('hidden',!count);
+}
+
 async function openChatById(id){const {data,error}=await sb.from("conversations").select("*").eq("id",id).single();if(error)return;openChat(data)}
 async function openChat(c){
   const otherId=c.user1_id===me.id?c.user2_id:c.user1_id; const {data:u}=await sb.from("profiles").select("*").eq("id",otherId).single(); const {data:s}=await sb.from("conversation_settings").select("*").eq("conversation_id",c.id).eq("user_id",me.id).maybeSingle();
@@ -144,7 +165,22 @@ async function loadMessages(){
 }
 async function sendMessage(){const content=$("messageInput").value.trim();if(!content||!activeChat)return;const r=await sb.from("messages").insert({sender_id:me.id,receiver_id:activeChat.user.id,content,conversation_id:activeChat.conversation.id,message_type:"text"});if(r.error)return toast("تعذر إرسال الرسالة");$("messageInput").value="";await loadMessages();await loadChats()}
 async function markRead(){if(!activeChat)return;await sb.from("messages").update({read_at:new Date().toISOString()}).eq("conversation_id",activeChat.conversation.id).eq("receiver_id",me.id).is("read_at",null);}
-function subscribeMessages(){if(messageChannel)sb.removeChannel(messageChannel);messageChannel=sb.channel("messages-"+me.id).on("postgres_changes",{event:"*",schema:"public",table:"messages"},payload=>{if(activeChat&&payload.new?.conversation_id===activeChat.conversation.id){loadMessages();if(payload.new.receiver_id===me.id)markRead()}loadChats()}).subscribe()}
+async function requestNotifications(){
+  if(!("Notification" in window))return;
+  if(Notification.permission==="default")try{await Notification.requestPermission()}catch(e){}
+}
+async function notifyIncomingMessage(m){
+  if(m.receiver_id!==me.id||m.sender_id===me.id)return;
+  if(activeChat?.conversation?.id===m.conversation_id)return;
+  const {data:u}=await sb.from("profiles").select("display_name").eq("id",m.sender_id).maybeSingle();
+  const title=u?.display_name||"رسالة جديدة"; const body=m.content||"رسالة جديدة";
+  toast(`💬 ${title}: ${body}`);
+  if("Notification" in window && Notification.permission==="granted"){
+    try{new Notification(title,{body,icon:"logo.png",tag:"combo-"+m.conversation_id})}catch(e){}
+  }
+}
+function subscribeMessages(){if(messageChannel)sb.removeChannel(messageChannel);messageChannel=sb.channel("messages-"+me.id).on("postgres_changes",{event:"*",schema:"public",table:"messages"},payload=>{if(payload.eventType==="INSERT"&&payload.new?.receiver_id===me.id)notifyIncomingMessage(payload.new);if(activeChat&&payload.new?.conversation_id===activeChat.conversation.id){loadMessages();if(payload.new.receiver_id===me.id)markRead()}loadChats()}).subscribe()}
+
 function closeChat(){$("chatModal").classList.add("hidden");activeChat=null}
 async function chatMenu(){if(!activeChat)return;const a=prompt("اكتب: 1 أرشفة | 2 قفل | 3 إلغاء القفل");if(a==="1"){await setChatSetting({archived:true});closeChat();await loadChats();toast("تمت أرشفة المحادثة")}if(a==="2"){pinMode="chat";$("pinTitle").textContent="قفل المحادثة";$("pinConfirmBtn").textContent="تأكيد";$("pinModal").classList.remove("hidden")}if(a==="3"){await sb.from("conversation_settings").delete().eq("conversation_id",activeChat.conversation.id).eq("user_id",me.id);toast("تم إلغاء القفل")}}
 async function setChatSetting(extra){if(!activeChat)return;const {data:old}=await sb.from("conversation_settings").select("archived,locked,pin_hash").eq("conversation_id",activeChat.conversation.id).eq("user_id",me.id).maybeSingle();const base={user_id:me.id,conversation_id:activeChat.conversation.id,archived:old?.archived||false,locked:old?.locked||false,pin_hash:old?.pin_hash||null,...extra};const r=await sb.from("conversation_settings").upsert(base,{onConflict:"user_id,conversation_id"});if(r.error)toast("تأكد من تشغيل SQL الخاص بالنسخة")}
@@ -154,12 +190,116 @@ async function setupAppLock(){pinMode="app";$("pinTitle").textContent="قفل ا
 async function checkAppLock(){const h=localStorage.getItem("combo_app_lock");if(h){$("lockScreen").classList.remove("hidden");$("appLockState").textContent="مفعل"}}
 async function unlockApp(){const h=await sha($("unlockInput").value);if(h===localStorage.getItem("combo_app_lock")){$("lockScreen").classList.add("hidden");$("unlockInput").value=""}else toast("رمز القفل غير صحيح")}
 
-async function publishStory(){const content=$("storyText").value.trim();if(!content)return toast("اكتب الحالة");const r=await sb.from("stories").insert({user_id:me.id,content,media_type:"text",expires_at:new Date(Date.now()+86400000).toISOString()});if(r.error)return toast("تعذر نشر الحالة");$("storyText").value="";toast("تم نشر الحالة");loadStories()}
-async function loadStories(){const {data,error}=await sb.from("stories").select("*,profiles(display_name,username)").gt("expires_at",new Date().toISOString()).order("created_at",{ascending:false});if(error){$("storiesList").innerHTML="<div class='empty-card'>تعذر تحميل الحالات</div>";return}$("storiesList").innerHTML=(data||[]).map(s=>`<article class="story-item"><div class="chat-item" style="padding:0;border:0"><div class="avatar">${initials(s.profiles?.display_name)}</div><div class="chat-info"><strong>${esc(s.profiles?.display_name||"مستخدم")}</strong><small>${fmt(s.created_at)}</small></div></div><p>${esc(s.content||"")}</p></article>`).join("")||"<div class='empty-card'>مفيش حالات حاليًا</div>"}
+function normalizePhone(value=""){
+  let n=String(value).replace(/[^0-9+]/g,"");
+  if(n.startsWith("00")) n="+"+n.slice(2);
+  if(n.startsWith("+20")) return "20"+n.slice(3);
+  if(n.startsWith("20") && n.length>=12) return n;
+  if(n.startsWith("0")) return "20"+n.slice(1);
+  return n.replace(/\D/g,"");
+}
+function readSavedContacts(){try{return JSON.parse(localStorage.getItem("combo_contacts")||"[]")}catch{return[]}}
+function saveContacts(list){localStorage.setItem("combo_contacts",JSON.stringify(list));}
+function closeContacts(){$("contactsModal").classList.add("hidden")}
+async function openContacts(){
+  $("contactsModal").classList.remove("hidden");
+  await renderContacts();
+  const saved=readSavedContacts();
+  if(!saved.length && !navigator.contacts?.select) $("contactsList").innerHTML="<div class='empty-card'>متصفحك مش بيدعم قراءة جهات الاتصال مباشرة. استخدم البحث باسم المستخدم أو رقم الموبايل.</div>";
+}
+async function pickContacts(){
+  if(!navigator.contacts?.select)return toast("قراءة جهات الاتصال غير مدعومة في المتصفح ده");
+  try{
+    const raw=await navigator.contacts.select(["name","tel"],{multiple:true});
+    const merged=[];
+    for(const c of raw||[]){
+      const name=(c.name||[])[0]||"جهة اتصال";
+      for(const tel of c.tel||[]){const phone=normalizePhone(tel);if(phone)merged.push({name,phone,rawPhone:tel})}
+    }
+    const unique=[...new Map(merged.map(x=>[x.phone,x])).values()]; saveContacts(unique); await renderContacts(); toast(`تم تحميل ${unique.length} جهة اتصال`);
+  }catch(e){if(e?.name!=="AbortError")toast("تعذر قراءة جهات الاتصال")}
+}
+async function renderContacts(){
+  const saved=readSavedContacts(); const q=$("contactSearch").value.trim().toLowerCase();
+  const filtered=saved.filter(c=>(c.name||"").toLowerCase().includes(q)||(c.phone||"").includes(q));
+  if(!filtered.length){$("contactsList").innerHTML="<div class='empty-card'>مفيش جهات اتصال معروضة. اضغط 📱 اختيار جهات الاتصال.</div>";return}
+  const nums=filtered.map(x=>x.phone).filter(Boolean); const {data}=await sb.from("profiles").select("id,display_name,username,phone").in("phone",nums).limit(200);
+  const byPhone=Object.fromEntries((data||[]).map(x=>[x.phone,x]));
+  $("contactsList").innerHTML=filtered.map(c=>{
+    const u=byPhone[c.phone];
+    if(u && u.id===me.id)return "";
+    if(u)return `<div class="contact-row"><div class="avatar">${initials(u.display_name||c.name)}</div><div class="chat-info"><strong>${esc(u.display_name||c.name)}</strong><small>${esc(c.rawPhone||c.phone)} · @${esc(u.username||"")}</small></div><button class="contact-action primary-inline" data-chat="${u.id}">دردشة</button></div>`;
+    return `<div class="contact-row"><div class="avatar muted-avatar">${initials(c.name)}</div><div class="chat-info"><strong>${esc(c.name)}</strong><small>${esc(c.rawPhone||c.phone)}</small></div><button class="contact-action invite-btn" data-phone="${esc(c.rawPhone||c.phone)}" data-name="${esc(c.name)}">دعوة</button></div>`;
+  }).join("")||"<div class='empty-card'>مفيش جهات اتصال أخرى.</div>";
+  $("contactsList").querySelectorAll("[data-chat]").forEach(b=>b.onclick=async()=>{closeContacts();await openUser(b.dataset.chat)});
+  $("contactsList").querySelectorAll("[data-phone]").forEach(b=>b.onclick=()=>inviteContact(b.dataset.phone,b.dataset.name));
+}
+async function inviteContact(phone,name){
+  const text=`${name||"صاحبك"}، ادعوك تنضم لـ ComboApp للدردشة: ${APP_BASE_URL}`;
+  if(navigator.share){try{await navigator.share({title:"ComboApp",text,url:APP_BASE_URL});return}catch(e){if(e?.name==="AbortError")return}}
+  location.href=`sms:${encodeURIComponent(phone)}?body=${encodeURIComponent(text)}`;
+}
+
+function storyTypeFromFile(file){if(!file)return "text";if(file.type.startsWith("image/"))return "image";if(file.type.startsWith("video/"))return "video";if(file.type.startsWith("audio/"))return "audio";return null}
+function previewStoryMedia(){
+  const input=$("storyMediaInput"), file=input.files?.[0], box=$("storyMediaPreview"), name=$("storyMediaName"), clear=$("clearStoryMediaBtn");
+  if(!file){clearStoryMedia();return}
+  const type=storyTypeFromFile(file); if(!type){toast("اختار صورة أو فيديو أو ملف صوتي");input.value="";return}
+  if(file.size>50*1024*1024){toast("الحد الأقصى للستوري 50 ميجابايت");input.value="";return}
+  name.textContent=file.name; box.classList.remove("hidden"); clear.classList.remove("hidden");
+  const url=URL.createObjectURL(file); box.innerHTML=type==="image"?`<img src="${url}" alt="معاينة">`:type==="video"?`<video src="${url}" controls playsinline></video>`:`<audio src="${url}" controls></audio>`;
+}
+function clearStoryMedia(){const input=$("storyMediaInput");if(input)input.value="";$("storyMediaName").textContent="لم يتم اختيار ملف";$("storyMediaPreview").classList.add("hidden");$("storyMediaPreview").innerHTML="";$("clearStoryMediaBtn").classList.add("hidden")}
+async function publishStory(){
+  const content=$("storyText").value.trim(), file=$("storyMediaInput").files?.[0]||null;
+  if(!content&&!file)return toast("اكتب حالة أو أضف صورة/فيديو/أغنية");
+  let media_type="text", media_path=null;
+  if(file){
+    media_type=storyTypeFromFile(file); if(!media_type)return toast("نوع الملف غير مدعوم");
+    const ext=(file.name.split(".").pop()||"bin").toLowerCase().replace(/[^a-z0-9]/g,"");
+    media_path=`${me.id}/${crypto.randomUUID()}.${ext}`;
+    const up=await sb.storage.from("stories").upload(media_path,file,{contentType:file.type||"application/octet-stream",upsert:false});
+    if(up.error)return toast("تعذر رفع ملف الستوري: "+up.error.message);
+  }
+  const r=await sb.from("stories").insert({user_id:me.id,content:content||null,media_type,media_path,expires_at:new Date(Date.now()+86400000).toISOString()});
+  if(r.error){if(media_path)await sb.storage.from("stories").remove([media_path]);return toast("تعذر نشر الحالة");}
+  $("storyText").value="";clearStoryMedia();toast("تم نشر الحالة");await loadStories()
+}
+async function getFriendIds(){
+  const ids=new Set([me.id]);
+  const {data:c}=await sb.from("conversations").select("user1_id,user2_id").or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`);
+  for(const x of c||[]) ids.add(x.user1_id===me.id?x.user2_id:x.user1_id);
+  const contacts=readSavedContacts();
+  const nums=contacts.map(x=>x.phone).filter(Boolean);
+  if(nums.length){
+    const {data:p}=await sb.from("profiles").select("id").in("phone",nums).limit(200);
+    for(const x of p||[]) ids.add(x.id);
+  }
+  return [...ids];
+}
+async function loadStories(){
+  const friendIds=await getFriendIds();
+  const {data,error}=await sb.from("stories").select("*,profiles(display_name,username)").in("user_id",friendIds).gt("expires_at",new Date().toISOString()).order("created_at",{ascending:false});
+  if(error){$("storiesList").innerHTML="<div class='empty-card'>تعذر تحميل الحالات</div>";return}
+  const rows=data||[];
+  const mediaUrls={};
+  for(const s of rows){
+    if(s.media_path){const r=await sb.storage.from("stories").createSignedUrl(s.media_path,3600);if(!r.error)mediaUrls[s.id]=r.data.signedUrl;}
+  }
+  $("storiesList").innerHTML=rows.map(s=>{
+    const url=mediaUrls[s.id];
+    let media="";
+    if(url&&s.media_type==="image")media=`<div class="story-media"><img src="${esc(url)}" alt="صورة حالة" loading="lazy"></div>`;
+    if(url&&s.media_type==="video")media=`<div class="story-media"><video src="${esc(url)}" controls playsinline preload="metadata"></video></div>`;
+    if(url&&s.media_type==="audio")media=`<div class="story-media"><audio src="${esc(url)}" controls preload="metadata"></audio></div>`;
+    return `<article class="story-item"><div class="chat-item" style="padding:0;border:0"><div class="avatar">${initials(s.profiles?.display_name)}</div><div class="chat-info"><strong>${esc(s.profiles?.display_name||"مستخدم")}</strong><small>${s.user_id===me.id?"حالتي":"من جهات اتصالك"} · ${fmt(s.created_at)}</small></div></div>${media}${s.content?`<p class="story-caption">${esc(s.content)}</p>`:""}</article>`
+  }).join("")||"<div class='empty-card'>مفيش حالات من أصدقائك/جهات اتصالك حاليًا.</div>"
+}
+
 async function sendSarhny(){const username=$("sarhnyUsername").value.trim(),content=$("sarhnyContent").value.trim();if(!username||!content)return toast("اكتب اسم المستخدم والرسالة");const {error}=await sb.rpc("send_sarhny_message",{p_username:username,p_content:content});if(error)return toast(error.message||"تعذر إرسال الرسالة");$("sarhnyContent").value="";$("sarhnyCount").textContent="0";toast("تم إرسال رسالتك بشكل سري")}
 async function loadSarhnyInbox(){const {data,error}=await sb.from("sarhny_messages").select("id,content,created_at").eq("recipient_id",me.id).order("created_at",{ascending:false});if(error){$("sarhnyInbox").innerHTML="<div class='muted'>تعذر تحميل الرسائل السرية.</div>";return}$("sarhnyInbox").innerHTML=(data||[]).map(x=>`<div class="sarhny-item"><div class="avatar">♡</div><div class="chat-info"><strong>رسالة سرية</strong><small>${esc(x.content)}</small></div><span class="time">${fmt(x.created_at)}</span></div>`).join("")||"<div class='empty-card'>لسه موصلكش رسائل سرية.</div>"}
-async function loadProfile(){$("profileName").value=me.display_name||"";$("profileUsername").value=me.username||"";$("profileBio").value=me.bio||"";$("profileAvatar").textContent=initials(me.display_name)}
-async function saveProfile(){const display_name=$("profileName").value.trim(),username=$("profileUsername").value.trim().toLowerCase(),bio=$("profileBio").value.trim();if(!display_name||!username)return toast("الاسم واسم المستخدم مطلوبين");const {error}=await sb.from("profiles").update({display_name,username,bio,last_seen:new Date().toISOString()}).eq("id",me.id);if(error)return toast(error.code==="23505"?"اسم المستخدم مستخدم بالفعل":"تعذر حفظ البيانات");me={...me,display_name,username,bio};$("profileAvatar").textContent=initials(display_name);toast("تم حفظ البروفايل")}
+async function loadProfile(){$("profileName").value=me.display_name||"";$("profileUsername").value=me.username||"";$("profilePhone").value=me.phone||"";$("profileBio").value=me.bio||"";$("profileAvatar").textContent=initials(me.display_name)}
+async function saveProfile(){const display_name=$("profileName").value.trim(),username=$("profileUsername").value.trim().toLowerCase(),phone=normalizePhone($("profilePhone").value),bio=$("profileBio").value.trim();if(!display_name||!username)return toast("الاسم واسم المستخدم مطلوبين");const {error}=await sb.from("profiles").update({display_name,username,phone:phone||null,bio,last_seen:new Date().toISOString()}).eq("id",me.id);if(error)return toast(error.code==="23505"?"اسم المستخدم مستخدم بالفعل":"تعذر حفظ البيانات");me={...me,display_name,username,phone:phone||null,bio};$("profileAvatar").textContent=initials(display_name);toast("تم حفظ البروفايل")}
 async function changePassword(){const p=prompt("اكتب كلمة السر الجديدة (6 أحرف على الأقل):");if(!p||p.length<6)return;const {error}=await sb.auth.updateUser({password:p});toast(error?"تعذر تغيير كلمة السر":"تم تغيير كلمة السر")}
 
 // ---------- WebRTC voice/video calls with Supabase Realtime signaling ----------
