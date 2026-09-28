@@ -60,3 +60,59 @@
 .chat-panel .messages{transition:background .25s ease}.wall-image-choice::after{content:attr(data-label)}
 /* ===== V5 WhatsApp-like action sheets / profile gallery ===== */
 .action-sheet-v5{width:min(430px,94%);max-height:86vh;overflow:auto;background:#06161d;border:1px solid #1b4b54;border-radius:26px;padding:10px;box-shadow:0 25px 90px #000d}.action-sheet-v5 h3{margin:8px 10px 12px;text-align:right}.action-sheet-v5 .v5-action{width:100%;display:flex;align-items:center;gap:13px;border:0;border-bottom:1px solid #12353d;background:transparent;color:#eefbf8;padding:16px 12px;text-align:right;font-size:15px}.action-sheet-v5 .v5-action:last-child{border-bottom:0}.action-sheet-v5 .v5-action .v5-ico{width:42px;height:42px;flex:0 0 42px;border-radius:14px;display:grid;place-items:center;background:#0b2a32;color:#00e6b0;font-size:21px}.action-sheet-v5 .v5-action.danger{color:#ff667a}.profile-gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}.profile-gallery-item{position:relative;aspect-ratio:1;border-radius:16px;overflow:hidden;background:#0b2028;border:1px solid #16434b}.profile-gallery-item img,.profile-gallery-item video{width:100%;height:100%;object-fit:cover}.profile-gallery-item .v5-media-badge{position:absolute;left:6px;bottom:6px;background:#001a1cdd;color:#fff;border-radius:9px;padding:3px 6px;font-size:10px}.profile-gallery-item .v5-delete{position:absolute;right:5px;top:5px;width:30px;height:30px;border:0;border-radius:10px;background:#ff3f5f;color:#fff;font-size:16px}.other-profile-avatar{cursor:pointer}.chat-person,.chat-title-click{cursor:pointer}.profile-cover-v5{background:radial-gradient(circle at 50% 0,#00e6b044,#041117 70%)}
+
+/* ===== COMBOAPP NEON UI - visual refresh ===== */
+:root{
+  --neon:#00f5c8;
+  --neon2:#00bfa9;
+  --neon-soft:rgba(0,245,200,.22);
+  --panel:#06151b;
+  --panel2:#081d24;
+  --line:rgba(0,245,200,.22);
+  --text:#f1fffc;
+  --muted:#8ca8a5;
+}
+html,body{background:#010608!important;color:var(--text)}
+body{background:radial-gradient(circle at 50% -10%,#073f38 0,#020b10 32%,#010608 72%)!important}
+.app-screen{width:min(760px,100%);background:linear-gradient(180deg,#020b0f,#010608 45%,#020a0e);border-inline:1px solid rgba(0,245,200,.12);box-shadow:0 0 80px rgba(0,245,200,.06)}
+.topbar{height:72px;background:rgba(2,11,15,.88);border-bottom:1px solid var(--line);box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.top-brand{font-weight:900;letter-spacing:.2px}.top-brand span{color:var(--neon);text-shadow:0 0 14px rgba(0,245,200,.55)}
+.mini-logo{filter:drop-shadow(0 0 10px rgba(0,245,200,.55))}
+.icon-btn{color:#eafffa;border:1px solid transparent;transition:.18s}.icon-btn:hover{color:var(--neon);border-color:var(--line);background:#062028;box-shadow:0 0 16px var(--neon-soft)}
+.page{padding:20px 16px 112px}.hero-title h2{font-size:28px;font-weight:900;text-shadow:0 0 18px rgba(0,245,200,.12)}
+.hero-title p{color:#8ba9a5}
+.round-btn,.send-round{background:linear-gradient(135deg,#16ffd1,#00bfa7)!important;border:1px solid #5dffe4!important;box-shadow:0 0 18px rgba(0,245,200,.3),inset 0 0 10px rgba(255,255,255,.12);color:#001b17!important}
+.search-box{height:52px;background:linear-gradient(180deg,#0a222a,#06171d);border:1px solid #12616a;border-radius:18px;box-shadow:0 0 20px rgba(0,245,200,.08),inset 0 0 18px rgba(0,0,0,.25)}
+.search-box input{font-size:14px}.search-box:focus-within{border-color:var(--neon);box-shadow:0 0 0 1px var(--neon),0 0 22px rgba(0,245,200,.16)}
+.quick-row{gap:10px;margin:14px 0}.quick-card{min-height:58px;background:linear-gradient(145deg,#0a2229,#041218);border:1px solid #12616a;border-radius:17px;box-shadow:inset 0 0 16px rgba(0,245,200,.04),0 6px 20px rgba(0,0,0,.28);color:#eafffa;transition:.18s}.quick-card:hover{border-color:var(--neon);box-shadow:0 0 18px var(--neon-soft)}
+.list{gap:2px}.chat-item,.result-item,.sarhny-item{padding:13px 8px;border:1px solid transparent;border-bottom-color:rgba(0,245,200,.10);border-radius:15px;transition:.18s}.chat-item:hover,.result-item:hover,.sarhny-item:hover{background:#061b22;border-color:rgba(0,245,200,.18)}
+.avatar{background:linear-gradient(135deg,#10ffd0,#057e90)!important;box-shadow:0 0 15px rgba(0,245,200,.24),inset 0 0 8px rgba(255,255,255,.12);border:1px solid rgba(102,255,228,.5)}
+.avatar.big{box-shadow:0 0 30px rgba(0,245,200,.28)}
+.badge{background:var(--neon);box-shadow:0 0 10px rgba(0,245,200,.35)}
+.time{color:#6d8f8b}.chat-info strong{font-size:15px}.chat-info small{color:#7e9b97}
+.settings-card,.profile-card,.sarhny-card,.empty-card{background:linear-gradient(145deg,#0a2028,#051219);border:1px solid #12616a;border-radius:20px;box-shadow:0 12px 35px rgba(0,0,0,.25),inset 0 0 22px rgba(0,245,200,.025)}
+.settings-title{color:var(--neon);text-shadow:0 0 12px rgba(0,245,200,.25)}
+.setting{border-bottom-color:rgba(0,245,200,.11);padding:16px 8px}.setting:hover{background:#08232a;color:var(--neon)}
+.primary{background:linear-gradient(135deg,#18ffd2,#00bca5)!important;border:1px solid #64ffe8!important;box-shadow:0 0 20px rgba(0,245,200,.25);color:#001b17!important}
+.bottom-nav{width:min(760px,100%);height:78px;background:rgba(2,10,14,.92);border-top:1px solid #12616a;box-shadow:0 -12px 35px rgba(0,0,0,.45),0 -2px 20px rgba(0,245,200,.06)}
+.nav{color:#76938f;font-size:22px;border-radius:14px;margin:7px 4px}.nav span{font-size:11px}.nav.active{color:var(--neon)!important;background:linear-gradient(180deg,rgba(0,245,200,.12),transparent);text-shadow:0 0 13px rgba(0,245,200,.5)}
+.nav-badge{border-color:#041117;background:#ff3f70;box-shadow:0 0 8px rgba(255,63,112,.35)}
+.modal{background:rgba(0,4,6,.82);backdrop-filter:blur(8px)}.modal-panel,.story-composer{background:linear-gradient(180deg,#031016,#01080b)}
+.sheet,.small-panel,.action-sheet{background:linear-gradient(145deg,#081d24,#031015);border:1px solid #12616a;box-shadow:0 25px 90px #000d,0 0 30px rgba(0,245,200,.06)}
+.sheet-head,.chat-head{border-bottom-color:rgba(0,245,200,.17)}
+.contact-tool,.choice-btn{border-color:#12616a;background:#071c23}.primary-inline{background:linear-gradient(135deg,#18ffd2,#00bca5)!important;color:#001b17!important}
+.chat-panel{background:#01090d}.chat-head{background:rgba(3,15,20,.96);box-shadow:0 5px 22px #0008}.chat-person{border:1px solid transparent}.chat-person:active{background:#06252d;border-color:var(--line)}
+.modern-call-btn{border-color:#12616a!important;background:#061a21!important;box-shadow:0 0 12px rgba(0,245,200,.08)}
+.messages{background:radial-gradient(circle at 50% 0,#09252b 0,#031016 42%,#02090d 100%);background-image:radial-gradient(rgba(0,245,200,.045) 1px,transparent 1px);background-size:18px 18px}
+.bubble{border:1px solid rgba(0,245,200,.10);box-shadow:0 5px 18px rgba(0,0,0,.25)}.mine{background:linear-gradient(135deg,#14e9bf,#06b99f)!important;border-color:#54ffe1}.theirs{background:linear-gradient(145deg,#102d34,#0a1e25);border-color:#174c55}
+.composer{background:rgba(3,14,19,.96);border-top-color:#12616a}.composer input{background:#071b22;border-color:#12616a}.composer-icon{color:#9dece0}.emoji-panel{background:#061820;border-top-color:#12616a}
+.story-canvas{background:radial-gradient(circle at 50% 0,#0a3736,#07141b 48%,#02090d)}
+.story-bottom-tools{background:#04141a;border-top-color:#12616a}.story-tool.active{color:var(--neon)}
+.sarhny-icon{color:var(--neon)!important;text-shadow:0 0 25px rgba(0,245,200,.45)}
+input,textarea,.modal-search{background:#061a21!important;border-color:#15515a!important}input:focus,textarea:focus,.modal-search:focus{border-color:var(--neon)!important;box-shadow:0 0 0 1px var(--neon),0 0 18px rgba(0,245,200,.12)}
+/* Make existing icon assets look like the neon reference */
+.profile-actions-grid button span,.modern-call-btn{filter:drop-shadow(0 0 7px rgba(0,245,200,.35))}.profile-actions-grid button span img,.modern-call-btn img{filter:drop-shadow(0 0 8px rgba(0,245,200,.55))}
+.other-profile-settings button{background:linear-gradient(145deg,#081f27,#041218)!important;border-color:#12616a!important;border-radius:14px;margin:4px 0}.other-profile-settings button:hover{box-shadow:0 0 15px rgba(0,245,200,.12)}
+/* subtle neon frame around important cards */
+.auth-card{background:linear-gradient(145deg,#081d24,#031015);border-color:#12616a;box-shadow:0 20px 80px #0009,0 0 35px rgba(0,245,200,.08)}
+.brand-logo{filter:drop-shadow(0 0 22px rgba(0,245,200,.5))}
