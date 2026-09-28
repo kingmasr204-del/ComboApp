@@ -1,0 +1,1 @@
+ComboApp V13: fixed global setting scope that caused "setting is not defined" after login; calls disabled/hidden; chat controls remain active. No new SQL required for this fix.

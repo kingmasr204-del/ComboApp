@@ -100,6 +100,8 @@ async function markDelivered(){if(!activeChat)return;await sb.from("messages").u
 async function loadMessages(){if(!activeChat)return;const {data,error}=await sb.from("messages").select("*").eq("conversation_id",activeChat.conversation.id).order("created_at");if(error){$("messagesBox").innerHTML="<div class='muted'>تعذر تحميل الرسائل</div>";return}$("messagesBox").innerHTML=(data||[]).map(m=>{let ticks="";if(m.sender_id===me.id){ticks=m.read_at?"<span class='ticks read'>✓✓</span>":m.delivered_at?"<span class='ticks'>✓✓</span>":"<span class='ticks'>✓</span>"}return `<div class="bubble ${m.sender_id===me.id?"mine":"theirs"}">${esc(m.content)}<small>${fmt(m.created_at)} ${ticks}</small></div>`}).join("");$("messagesBox").scrollTop=$("messagesBox").scrollHeight}
 async function sendMessage(){const content=$("messageInput").value.trim();if(!content||!activeChat)return;const r=await sb.from("messages").insert({sender_id:me.id,receiver_id:activeChat.user.id,content,conversation_id:activeChat.conversation.id,message_type:"text"});if(r.error)return toast("تعذر إرسال الرسالة");$("messageInput").value="";await loadMessages();await loadChats()}
 async function markRead(){if(!activeChat)return;const now=new Date().toISOString();await sb.from("messages").update({delivered_at:now,read_at:now}).eq("conversation_id",activeChat.conversation.id).eq("receiver_id",me.id).is("read_at",null);await loadMessages()}
+function setting(key,def){return localStorage.getItem('combo_'+key) ?? def}
+function setSetting(key,val){setComboSetting(key,val)}
 function notificationsEnabled(){return setting("notifications","on")!=="off"}
 function updateNotificationBell(){const b=$("notifyBtn");if(!b)return;b.textContent=notificationsEnabled()?"🔔":"🔕";b.classList.toggle("bell-off",!notificationsEnabled());b.title=notificationsEnabled()?"إيقاف إشعارات البرنامج":"تشغيل إشعارات البرنامج"}
 async function toggleGlobalNotifications(){const next=!notificationsEnabled();setComboSetting("notifications",next?"on":"off");updateNotificationBell();if(next){await requestNotifications();toast("تم تشغيل إشعارات البرنامج")}else toast("تم إيقاف إشعارات البرنامج")}
@@ -493,7 +495,6 @@ setTimeout(()=>{
       ${row('pAbout','النبذة والمعلومات',setting('privacy_about',me?.privacy_profile||'everyone'))}
       ${row('pStatus','الحالة',setting('privacy_status',me?.privacy_status||'everyone'))}
       ${row('pGroups','إضافتي للمجموعات',setting('privacy_groups','everyone'))}
-      ${row('pCalls','من يمكنه الاتصال بي',setting('privacy_calls','everyone'))}
       <label class="privacy-row"><span>إيصالات القراءة</span><input id="pRead" type="checkbox" ${setting('read_receipts',me?.read_receipts||'on')!=='off'?'checked':''}></label>
       <label class="privacy-row"><span>مؤشر الكتابة</span><input id="pTyping" type="checkbox" ${setting('typing','on')!=='off'?'checked':''}></label>
       <label class="privacy-row"><span>إظهار حالتي للجهات الجديدة</span><input id="pNewStatus" type="checkbox" ${setting('new_status','on')!=='off'?'checked':''}></label>
@@ -502,7 +503,7 @@ setTimeout(()=>{
     openSimple('الخصوصية والأمان',body,'إغلاق');
     setTimeout(()=>{
       $('savePrivacyV4')?.addEventListener('click',async()=>{
-        const vals={privacy_last_seen:$('pLast').value,privacy_online:$('pOnline').value,privacy_avatar:$('pAvatar').value,privacy_about:$('pAbout').value,privacy_status:$('pStatus').value,privacy_groups:$('pGroups').value,privacy_calls:$('pCalls').value,read_receipts:$('pRead').checked?'on':'off',typing:$('pTyping').checked?'on':'off',new_status:$('pNewStatus').checked?'on':'off'};
+        const vals={privacy_last_seen:$('pLast').value,privacy_online:$('pOnline').value,privacy_avatar:$('pAvatar').value,privacy_about:$('pAbout').value,privacy_status:$('pStatus').value,privacy_groups:$('pGroups').value,read_receipts:$('pRead').checked?'on':'off',typing:$('pTyping').checked?'on':'off',new_status:$('pNewStatus').checked?'on':'off'};
         Object.entries(vals).forEach(([k,v])=>setSetting(k,v));
         const db={privacy_last_seen:vals.privacy_last_seen,privacy_avatar:vals.privacy_avatar,privacy_profile:vals.privacy_about,privacy_status:vals.privacy_status,read_receipts:vals.read_receipts};
         const r=await sb.from('profiles').update(db).eq('id',me.id);
@@ -525,7 +526,6 @@ setTimeout(()=>{
       <button class="setting-live" data-v4="media">📥 التنزيل التلقائي للوسائط <b>${on('media','off')?'مفعل':'متوقف'}</b></button>
       <button class="setting-live" data-v4="animations">✨ الحركة داخل التطبيق <b>${on('animations')?'مفعلة':'متوقفة'}</b></button>
       <button class="setting-live" data-v4="vibration">📳 الاهتزاز <b>${on('vibration')?'مفعل':'متوقف'}</b></button>
-      <button class="setting-live" data-v4="calls">📞 إعدادات المكالمات <b>فتح</b></button>
       <button class="setting-live" data-v4="privacy">🛡️ إعدادات الخصوصية <b>فتح</b></button>
       <button class="setting-live" data-v4="reset">↺ استعادة الإعدادات الافتراضية</button>
       <div class="settings-about"><strong>ComboApp</strong><small>تواصل بحرية • الإصدار V4</small></div>
@@ -538,7 +538,6 @@ setTimeout(()=>{
       if(a==='wallpaper'){showWallpaper();return}
       if(a==='chatstyle'){showChatStyle();return}
       if(a==='privacy'){showPrivacy();return}
-      if(a==='calls'){openSimple('إعدادات المكالمات',`<div class="settings-info"><label class="privacy-row"><span>الكاميرا الأمامية تلقائيًا</span><input id="callMirror" type="checkbox" ${on('call_mirror')?'checked':''}></label><label class="privacy-row"><span>تشغيل السماعة تلقائيًا</span><input id="callSpeaker" type="checkbox" ${on('call_speaker')?'checked':''}></label><button id="saveCallPrefs" class="primary">حفظ</button></div>`,'إغلاق');setTimeout(()=>$('saveCallPrefs')?.addEventListener('click',()=>{setSetting('call_mirror',$('callMirror').checked?'on':'off');setSetting('call_speaker',$('callSpeaker').checked?'on':'off');closeSimple();toast('تم حفظ إعدادات المكالمات')}),30);return}
       if(a==='reset'){if(confirm('استعادة إعدادات ComboApp الافتراضية؟')){Object.keys(localStorage).filter(k=>k.startsWith('combo_')).forEach(k=>localStorage.removeItem(k));applyTheme();applyChatWallpaper();applyChatStyle();closeSimple();toast('تمت استعادة الإعدادات الافتراضية')}return}
       if(a==='sound'){setSetting('sound',on('sound')?'off':'on');showSettings();return}
       if(a==='enter'){setSetting('enter',on('enter','off')?'off':'on');showSettings();return}
@@ -856,7 +855,7 @@ handleSignal=async function(p){
     openSimple('الخصوصية والأمان',body,'إغلاق');
     setTimeout(()=>{
       $('savePrivacyV11')?.addEventListener('click',async()=>{
-        const vals={privacy_last_seen:$('pLast').value,privacy_online:$('pOnline').value,privacy_avatar:$('pAvatar').value,privacy_profile:$('pAbout').value,privacy_status:$('pStatus').value,username_visibility:$('pUsername').value,privacy_groups:$('pGroups').value,privacy_calls:$('pCalls').value,read_receipts:$('pRead').checked?'on':'off',typing:$('pTyping').checked?'on':'off'};
+        const vals={privacy_last_seen:$('pLast').value,privacy_online:$('pOnline').value,privacy_avatar:$('pAvatar').value,privacy_profile:$('pAbout').value,privacy_status:$('pStatus').value,username_visibility:$('pUsername').value,privacy_groups:$('pGroups').value,read_receipts:$('pRead').checked?'on':'off',typing:$('pTyping').checked?'on':'off'};
         Object.entries(vals).forEach(([k,v])=>localStorage.setItem('combo_'+k,v));
         const db={privacy_last_seen:vals.privacy_last_seen,privacy_avatar:vals.privacy_avatar,privacy_profile:vals.privacy_profile,privacy_status:vals.privacy_status,username_visibility:vals.username_visibility,read_receipts:vals.read_receipts};
         const r=await sb.from('profiles').update(db).eq('id',me.id);
@@ -903,4 +902,9 @@ handleSignal=async function(p){
       $('searchResults').querySelectorAll('.result-item').forEach(e=>e.onclick=()=>openUser(e.dataset.id));
     };
   }
+
+  // ComboApp V13: calls are intentionally disabled. Keep legacy call code dormant so it cannot affect chat.
+  try{
+    document.querySelectorAll('#audioCallBtn,#videoCallBtn,#otherVoiceBtn,#otherVideoBtn,.modern-call-btn,[data-call],#callsNav,#callsPage').forEach(el=>el.remove());
+  }catch(_){ }
 })();
