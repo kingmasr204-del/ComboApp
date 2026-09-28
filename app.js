@@ -20,32 +20,81 @@ async function init(){try{bind();const {data}=await sb.auth.getSession();session
 function showAuth(){$("authScreen").classList.remove("hidden");$("appScreen").classList.add("hidden");$("recoveryPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden");$("signupPanel").classList.add("hidden")}
 function showRecovery(){$("authScreen").classList.remove("hidden");$("appScreen").classList.add("hidden");$("loginPanel").classList.add("hidden");$("signupPanel").classList.add("hidden");$("recoveryPanel").classList.remove("hidden")}
 function bind(){
- $("showSignupBtn").onclick=()=>{$("loginPanel").classList.add("hidden");$("signupPanel").classList.remove("hidden")};$("showLoginBtn").onclick=()=>{$("signupPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden")};$("loginBtn").onclick=login;$("signupBtn").onclick=signup;$("forgotBtn").onclick=resetPassword;$("saveNewPasswordBtn").onclick=saveNewPassword;
- $("logoutBtn")?.addEventListener("click",logout);$("logoutProfileBtn")?.addEventListener("click",logout);$("profileBtn")?.addEventListener("click",()=>go("profilePage"));$("notifyBtn").onclick=toggleGlobalNotifications;$("settingsTopBtn").onclick=openGlobalSettings;$("closeGlobalSettingsBtn").onclick=closeGlobalSettings;$("openProfileSetting").onclick=()=>{closeGlobalSettings();go("profilePage")};$("openPrivacySetting").onclick=()=>{closeGlobalSettings();showPrivacy()};$("openAppSettings").onclick=()=>{closeGlobalSettings();showSettings()};$("openChatSettings").onclick=()=>{closeGlobalSettings();showChatStyle()};$("openWallpaperSetting").onclick=()=>{closeGlobalSettings();showWallpaper()};$("openCallSettings").onclick=()=>{closeGlobalSettings();openSimple("إعدادات المكالمات",`<div class="settings-info live-settings"><button class="setting-live" id="callNotifySetting">📞 السماح بمكالمات البرنامج <b>${setting("call_notifications","on")==="on"?"مفعلة":"متوقفة"}</b></button><button class="setting-live" id="callSoundSetting">🔊 صوت المكالمات <b>${setting("call_sound","on")==="on"?"مفعل":"متوقف"}</b></button></div>`,"تم");setTimeout(()=>{$("callNotifySetting")?.addEventListener("click",()=>{setSetting("call_notifications",setting("call_notifications","on")==="on"?"off":"on");showSettings()});$("callSoundSetting")?.addEventListener("click",()=>{setSetting("call_sound",setting("call_sound","on")==="on"?"off":"on");showSettings()})},30)};$("openAccountSetting").onclick=()=>{closeGlobalSettings();go("profilePage")};$("globalLogoutBtn").onclick=logout;updateNotificationBell();
- document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>go(b.dataset.page));$("userSearch").oninput=searchUsers;$("newChatBtn").onclick=openContacts;$("refreshBtn").onclick=loadChats;$("archivedBtn").onclick=()=>{go("archivedPage");loadArchived()};$("backHomeBtn").onclick=()=>go("homePage");
- $("sendMessageBtn").onclick=sendMessage;$("messageInput").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage()}});$("emojiBtn").onclick=toggleEmoji;$("attachContactBtn").onclick=openContacts;
- $("closeChatBtn").onclick=closeChat;$("chatMenuBtn").onclick=()=>$("chatMenuModal").classList.remove("hidden");$("menuCancelBtn").onclick=closeChatMenu;$("menuArchiveBtn").onclick=archiveChat;$("menuLockBtn").onclick=lockChat;$("menuDeleteBtn").onclick=deleteChat;$("menuReportBtn").onclick=reportChat;$("menuAddContactBtn").onclick=addActiveContact;
- $("voiceCallBtn").onclick=()=>startCall(false);$("videoCallBtn").onclick=()=>startCall(true);$("endCallBtn").onclick=()=>stopCall(true);$("muteBtn").onclick=toggleMute;$("cameraBtn").onclick=toggleCamera;
- $("closeContactsBtn").onclick=closeContacts;$("pickContactsBtn").onclick=pickContacts;$("manualContactBtn").onclick=()=>$("manualContactForm").classList.toggle("hidden");$("saveManualContactBtn").onclick=saveManualContact;$("contactSearch").oninput=renderContacts;
- $("addStoryBtn").onclick=openStoryComposer;$("closeStoryComposer").onclick=closeStoryComposer;$("storyPostTop").onclick=publishStory;$("storyTextModeBtn").onclick=storyTextMode;$("storyMediaInput").onchange=handleStoryFile;$("storyCameraInput").onchange=handleStoryFile;$("storyAudioBtn").onclick=pickAudio;document.querySelectorAll(".color-dot").forEach(b=>b.onclick=()=>{$("storyCanvas").style.background=b.dataset.color});
- $("avatarActionBtn").onclick=avatarActions;$("avatarFileInput").onchange=uploadAvatar;$("saveProfileBtn").onclick=saveProfile;$("changePasswordBtn").onclick=changePassword;$("appLockBtn").onclick=setupAppLock;$("privacyBtn").onclick=showPrivacy;$("settingsBtn").onclick=showSettings;$("wallpaperBtn").onclick=showWallpaper;$("chatStyleBtn").onclick=showChatStyle;$("deleteAccountBtn").onclick=deleteAccount;
- $("pinConfirmBtn").onclick=confirmPin;$("pinCancelBtn").onclick=closePin;$("unlockBtn").onclick=unlockApp;
+  const on=(id,event,fn)=>{const el=$(id);if(el)el.addEventListener(event,fn)};
+  const click=(id,fn)=>on(id,'click',fn);
+  click('showSignupBtn',()=>{$('loginPanel')?.classList.add('hidden');$('signupPanel')?.classList.remove('hidden')});
+  click('showLoginBtn',()=>{$('signupPanel')?.classList.add('hidden');$('loginPanel')?.classList.remove('hidden')});
+  click('loginBtn',login); click('signupBtn',signup); click('forgotBtn',resetPassword); click('saveNewPasswordBtn',saveNewPassword);
+  click('logoutProfileBtn',logout); click('notifyBtn',toggleGlobalNotifications); click('settingsTopBtn',openGlobalSettings); click('closeGlobalSettingsBtn',closeGlobalSettings);
+  click('openProfileSetting',()=>{closeGlobalSettings();go('profilePage')});
+  click('openPrivacySetting',()=>{closeGlobalSettings();showPrivacy()});
+  click('openAppSettings',()=>{closeGlobalSettings();showSettings()});
+  click('openChatSettings',()=>{closeGlobalSettings();showChatStyle()});
+  click('openWallpaperSetting',()=>{closeGlobalSettings();showWallpaper()});
+  click('openAccountSetting',()=>{closeGlobalSettings();go('profilePage')});
+  click('globalLogoutBtn',logout); updateNotificationBell();
+  document.querySelectorAll('.nav').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
+  on('userSearch','input',searchUsers); click('newChatBtn',openContacts); click('refreshBtn',loadChats); click('archivedBtn',()=>{go('archivedPage');loadArchived()}); click('backHomeBtn',()=>go('homePage'));
+  click('sendMessageBtn',sendMessage); on('messageInput','keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}});
+  click('emojiBtn',toggleEmoji); click('attachContactBtn',openAttachmentSheet);
+  click('closeChatBtn',closeChat); click('chatMenuBtn',()=>$('chatMenuModal')?.classList.remove('hidden')); click('menuCancelBtn',closeChatMenu); click('menuArchiveBtn',archiveChat); click('menuLockBtn',lockChat); click('menuDeleteBtn',deleteChat); click('menuReportBtn',reportChat); click('menuAddContactBtn',addActiveContact);
+  click('closeContactsBtn',closeContacts); click('pickContactsBtn',pickContacts); click('manualContactBtn',()=>$('manualContactForm')?.classList.toggle('hidden')); click('saveManualContactBtn',saveManualContact); on('contactSearch','input',renderContacts);
+  click('addStoryBtn',openStoryComposer); click('closeStoryComposer',closeStoryComposer); click('storyPostTop',publishStory); click('storyTextModeBtn',storyTextMode); on('storyMediaInput','change',handleStoryFile); on('storyCameraInput','change',handleStoryFile); click('storyAudioBtn',pickAudio); document.querySelectorAll('.color-dot').forEach(b=>b.addEventListener('click',()=>{$('storyCanvas').style.background=b.dataset.color}));
+  click('avatarActionBtn',avatarActions); on('avatarFileInput','change',uploadAvatar); click('saveProfileBtn',saveProfile); click('changePasswordBtn',changePassword); click('appLockBtn',setupAppLock); click('privacyBtn',showPrivacy); click('settingsBtn',showSettings); click('wallpaperBtn',showWallpaper); click('chatStyleBtn',showChatStyle); click('deleteAccountBtn',deleteAccount);
+  click('pinConfirmBtn',confirmPin); click('pinCancelBtn',closePin); click('unlockBtn',unlockApp);
 }
-async function login(){const email=$("loginEmail").value.trim(),password=$("loginPassword").value;if(!email||!password)return toast("اكتب البريد وكلمة السر");const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)return toast(error.message||"البريد أو كلمة السر غير صحيحة");session=data.session||session;try{await enterApp()}catch(e){console.error(e);toast("تم تسجيل الدخول لكن تعذر فتح التطبيق. حاول مرة أخرى.")}}
-async function signup(){const name=$("signupName").value.trim(),username=$("signupUsername").value.trim().toLowerCase(),email=$("signupEmail").value.trim(),phone=normalizePhone($("signupPhone").value),p=$("signupPassword").value,p2=$("signupPassword2").value;if(!name||!username||!email||!p)return toast("كمّل البيانات");if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast("اسم المستخدم إنجليزي وأرقام و _ فقط");if(p.length<6)return toast("كلمة السر 6 أحرف على الأقل");if(p!==p2)return toast("تأكيد كلمة السر غير مطابق");const {data,error}=await sb.auth.signUp({email,password:p,options:{emailRedirectTo:APP_BASE_URL,data:{display_name:name,username,phone}}});if(error)return toast(error.message);$("signupPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden");toast(data.session?"تم إنشاء الحساب":"تم إنشاء الحساب. افتح رسالة التأكيد ثم سجّل الدخول.")}
-async function resetPassword(){const email=$("loginEmail").value.trim();if(!email)return toast("اكتب بريدك أولًا");const redirectTo=window.location.origin+window.location.pathname;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error)return toast(error.message);toast("تم إرسال رابط تغيير كلمة السر")}
-async function saveNewPassword(){const p=$("newPassword").value,p2=$("newPassword2").value;if(p.length<6)return toast("كلمة السر 6 أحرف على الأقل");if(p!==p2)return toast("كلمتا السر غير متطابقتين");const {error}=await sb.auth.updateUser({password:p});if(error)return toast(error.message);toast("تم تغيير كلمة السر");await sb.auth.signOut();showAuth()}
-async function logout(){await stopCall(false);await sb.auth.signOut();location.reload()}
-async function enterApp(){if(!session)return;const {data,error}=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();if(error)return toast("تعذر تحميل الحساب");if(!data){const m=session.user.user_metadata||{};const fallback={id:session.user.id,display_name:m.display_name||"مستخدم",username:m.username||session.user.email.split("@")[0].replace(/[^a-z0-9_]/gi,"").slice(0,24)||"user",phone:m.phone||null,avatar_url:null};const r=await sb.from("profiles").upsert(fallback,{onConflict:"id"});if(r.error)return toast("تعذر تجهيز الحساب");me=fallback}else me=data;await loadCloudSettings();await loadCloudContacts();$("authScreen").classList.add("hidden");$("appScreen").classList.remove("hidden");await loadProfile();await loadChats();await loadStories();await loadSarhnyInbox();updateNotificationBell();await loadCallHistory();await checkAppLock();subscribeMessages();await subscribeCallRooms()}
+
+async function login(){
+  const email=$('loginEmail')?.value.trim(),password=$('loginPassword')?.value;
+  if(!email||!password)return toast('اكتب البريد وكلمة السر');
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error)return toast(error.message||'البريد أو كلمة السر غير صحيحة');
+  session=data.session||session;
+  try{await enterApp()}catch(e){console.error(e);toast('تعذر فتح التطبيق. حاول تحديث الصفحة مرة أخرى.')}
+}
+async function signup(){const name=$('signupName').value.trim(),username=$('signupUsername').value.trim().toLowerCase(),email=$('signupEmail').value.trim(),phone=normalizePhone($('signupPhone').value),p=$('signupPassword').value,p2=$('signupPassword2').value;if(!name||!username||!email||!p)return toast('كمّل البيانات');if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast('اسم المستخدم إنجليزي وأرقام و _ فقط');if(p.length<6)return toast('كلمة السر 6 أحرف على الأقل');if(p!==p2)return toast('تأكيد كلمة السر غير مطابق');const {data,error}=await sb.auth.signUp({email,password:p,options:{emailRedirectTo:APP_BASE_URL,data:{display_name:name,username,phone}}});if(error)return toast(error.message);$('signupPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');toast(data.session?'تم إنشاء الحساب':'تم إنشاء الحساب. افتح رسالة التأكيد ثم سجّل الدخول.')}
+async function resetPassword(){const email=$('loginEmail').value.trim();if(!email)return toast('اكتب بريدك أولًا');const redirectTo=window.location.origin+window.location.pathname;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error)return toast(error.message);toast('تم إرسال رابط تغيير كلمة السر')}
+async function saveNewPassword(){const p=$('newPassword').value,p2=$('newPassword2').value;if(p.length<6)return toast('كلمة السر 6 أحرف على الأقل');if(p!==p2)return toast('كلمتا السر غير متطابقتين');const {error}=await sb.auth.updateUser({password:p});if(error)return toast(error.message);toast('تم تغيير كلمة السر');await sb.auth.signOut();showAuth()}
+async function logout(){try{await sb.auth.signOut()}finally{location.reload()}}
+async function enterApp(){
+  if(!session)return;
+  if(_comboEntering)return _comboEntering;
+  _comboEntering=(async()=>{
+    const {data,error}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
+    if(error)throw new Error('تعذر تحميل الحساب: '+(error.message||''));
+    if(!data){
+      const m=session.user.user_metadata||{};
+      const base=(session.user.email||'user').split('@')[0].replace(/[^a-z0-9_]/gi,'').slice(0,24)||'user';
+      const fallback={id:session.user.id,display_name:m.display_name||'مستخدم',username:m.username||base,phone:m.phone||null,avatar_url:null};
+      const r=await sb.from('profiles').upsert(fallback,{onConflict:'id'});
+      if(r.error)throw new Error('تعذر تجهيز الحساب: '+r.error.message);
+      me=fallback;
+    }else me=data;
+    // Open the app as soon as the authenticated profile is ready. Secondary data must not block login.
+    $('authScreen')?.classList.add('hidden'); $('appScreen')?.classList.remove('hidden');
+    await safeAppTask('الإعدادات',loadCloudSettings);
+    await safeAppTask('جهات الاتصال',loadCloudContacts);
+    await safeAppTask('الملف الشخصي',loadProfile);
+    await safeAppTask('المحادثات',loadChats);
+    await safeAppTask('الحالات',loadStories);
+    await safeAppTask('صارحني',loadSarhnyInbox);
+    updateNotificationBell();
+    await safeAppTask('قفل التطبيق',checkAppLock);
+    try{subscribeMessages()}catch(e){console.warn(e)}
+  })();
+  try{return await _comboEntering}finally{_comboEntering=null}
+}
+async function safeAppTask(label,fn){try{return await fn()}catch(e){console.warn('ComboApp '+label+' failed',e);return null}}
+
 function go(page){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(page).classList.add("active");document.querySelectorAll(".nav").forEach(x=>x.classList.toggle("active",x.dataset.page===page));if(page==="homePage")loadChats();if(page==="storiesPage")loadStories();if(page==="sarhnyPage")loadSarhnyInbox();if(page==="callsPage")loadCallHistory()}
 async function searchUsers(){const q=$("userSearch").value.trim();if(!q){$("searchResults").classList.add("hidden");return}const safe=q.replace(/[%_,]/g," ");const {data}=await sb.from("profiles").select("id,username,display_name,avatar_url").or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`).neq("id",me.id).limit(10);$("searchResults").classList.remove("hidden");$("searchResults").innerHTML=(data||[]).map(u=>`<div class="result-item" data-id="${u.id}"><div class="avatar">${u.avatar_url?`<img src="${esc(u.avatar_url)}">`:initials(u.display_name)}</div><div class="chat-info"><strong>${esc(u.display_name)}</strong><small>@${esc(u.username)}</small></div><button class="contact-action primary-inline">دردشة</button></div>`).join("")||"<div class='muted' style='padding:12px'>مفيش نتائج</div>";$("searchResults").querySelectorAll(".result-item").forEach(e=>e.onclick=()=>openUser(e.dataset.id))}
-async function openUser(userId){const {data,error}=await sb.from("conversations").select("*").or(`and(user1_id.eq.${me.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${me.id})`).limit(1).maybeSingle();if(error&&error.code!=="PGRST116")return toast("تعذر فتح المحادثة");let c=data;if(!c){const r=await sb.from("conversations").insert({user1_id:me.id,user2_id:userId}).select().single();if(r.error)return toast("تعذر إنشاء المحادثة");c=r.data}$("searchResults").classList.add("hidden");$("userSearch").value="";await subscribeCallRoom(c.id);await openChat(c)}
+async function openUser(userId){const {data,error}=await sb.from("conversations").select("*").or(`and(user1_id.eq.${me.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${me.id})`).limit(1).maybeSingle();if(error&&error.code!=="PGRST116")return toast("تعذر فتح المحادثة");let c=data;if(!c){const r=await sb.from("conversations").insert({user1_id:me.id,user2_id:userId}).select().single();if(r.error)return toast("تعذر إنشاء المحادثة");c=r.data}$("searchResults").classList.add("hidden");$("userSearch").value="";await openChat(c)}
 async function getSettings(){const {data}=await sb.from("conversation_settings").select("conversation_id,archived,locked,deleted").eq("user_id",me.id);return Object.fromEntries((data||[]).map(x=>[x.conversation_id,x]))}
 async function renderChats(archived){const target=archived?$("archivedList"):$(("chatList"));const {data,error}=await sb.from("conversations").select("*").or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`).order("updated_at",{ascending:false});if(error){target.innerHTML="<div class='empty-card'>تعذر تحميل المحادثات</div>";return}const settings=await getSettings();const rowsBase=(data||[]).filter(c=>!settings[c.id]?.deleted);if(!rowsBase.length){target.innerHTML="<div class='empty-card'><h3>💬 مفيش محادثات</h3><p class='muted'>اضغط ＋ وابدأ محادثة جديدة.</p></div>";return}const ids=[...new Set(rowsBase.map(c=>c.user1_id===me.id?c.user2_id:c.user1_id))];const {data:pr}=await sb.from("profiles").select("id,username,display_name,phone,avatar_url").in("id",ids);const map=Object.fromEntries((pr||[]).map(x=>[x.id,x]));const {data:msgs}=await sb.from("messages").select("conversation_id,content,created_at,sender_id,receiver_id,read_at,delivered_at").in("conversation_id",rowsBase.map(c=>c.id)).order("created_at",{ascending:false}).limit(2000);const latest={},unread={};for(const m of msgs||[]){if(!latest[m.conversation_id])latest[m.conversation_id]=m;if(m.receiver_id===me.id&&!m.read_at)unread[m.conversation_id]=(unread[m.conversation_id]||0)+1}const rows=rowsBase.filter(c=>Boolean(settings[c.id]?.archived)===archived);target.innerHTML=rows.map(c=>{const u=map[c.user1_id===me.id?c.user2_id:c.user1_id]||{},last=latest[c.id],n=unread[c.id]||0;const preview=last?`${last.sender_id===me.id?"أنت: ":""}${esc(last.content||"رسالة")}`:"ابدأ المحادثة";return `<div class="chat-item selectable" data-cid="${c.id}"><div class="avatar">${u.avatar_url?`<img src="${esc(u.avatar_url)}">`:initials(u.display_name)}</div><div class="chat-info"><strong>${esc(u.display_name||"مستخدم")}</strong><small>${preview}</small></div><div class="chat-meta">${settings[c.id]?.locked?"🔒":""}<span class="time">${last?fmt(last.created_at):fmt(c.updated_at||c.created_at)}</span>${n?`<span class="badge">${n>99?"99+":n}</span>`:""}</div></div>`}).join("")||"<div class='empty-card'>مفيش محادثات هنا.</div>";target.querySelectorAll(".chat-item").forEach(el=>{let timer;el.onclick=()=>openChatById(el.dataset.cid);el.oncontextmenu=e=>{e.preventDefault();openChatById(el.dataset.cid).then(()=>archiveChat())};el.ontouchstart=()=>{timer=setTimeout(()=>{openChatById(el.dataset.cid).then(()=>$("chatMenuModal").classList.remove("hidden"))},650)};el.ontouchend=()=>clearTimeout(timer)});updateChatBadge(Object.values(unread).reduce((a,b)=>a+b,0))}
 function updateChatBadge(n){const nav=document.querySelector('.bottom-nav .nav[data-page="homePage"]');if(!nav)return;let b=nav.querySelector('.nav-badge');if(!b){b=document.createElement('span');b.className='nav-badge';nav.appendChild(b)}b.textContent=n>99?'99+':String(n);b.classList.toggle('hidden',!n)}
 async function loadChats(){return renderChats(false)} async function loadArchived(){return renderChats(true)}
 async function openChatById(id){const {data}=await sb.from("conversations").select("*").eq("id",id).single();if(data)openChat(data)}
-async function openChat(c){const otherId=c.user1_id===me.id?c.user2_id:c.user1_id;const {data:u}=await sb.from("profiles").select("*").eq("id",otherId).single();const {data:s}=await sb.from("conversation_settings").select("*").eq("conversation_id",c.id).eq("user_id",me.id).maybeSingle();if(s?.locked){pinMode="unlockChat";pendingLockedConversation=c;window._lockedSetting=s;$("pinTitle").textContent="فتح المحادثة";$("pinConfirmBtn").textContent="فتح";$("pinModal").classList.remove("hidden");return}activeChat={conversation:c,user:u};$("chatTitle").textContent=u?.display_name||"محادثة";$("chatStatus").textContent="متصل عبر ComboApp";setChatAvatar(u);$("chatModal").classList.remove("hidden");await subscribeCallRoom(c.id);await markDelivered();await loadMessages();await markRead();applyChatWallpaper()}
+async function openChat(c){const otherId=c.user1_id===me.id?c.user2_id:c.user1_id;const {data:u}=await sb.from("profiles").select("*").eq("id",otherId).single();const {data:s}=await sb.from("conversation_settings").select("*").eq("conversation_id",c.id).eq("user_id",me.id).maybeSingle();if(s?.locked){pinMode="unlockChat";pendingLockedConversation=c;window._lockedSetting=s;$("pinTitle").textContent="فتح المحادثة";$("pinConfirmBtn").textContent="فتح";$("pinModal").classList.remove("hidden");return}activeChat={conversation:c,user:u};$("chatTitle").textContent=u?.display_name||"محادثة";$("chatStatus").textContent="متصل عبر ComboApp";setChatAvatar(u);$("chatModal").classList.remove("hidden");await markDelivered();await loadMessages();await markRead();applyChatWallpaper()}
 function setChatAvatar(u){$("chatAvatar").innerHTML=u?.avatar_url?`<img src="${esc(u.avatar_url)}">`:esc(initials(u?.display_name))}
 async function markDelivered(){if(!activeChat)return;await sb.from("messages").update({delivered_at:new Date().toISOString()}).eq("conversation_id",activeChat.conversation.id).eq("receiver_id",me.id).is("delivered_at",null)}
 async function loadMessages(){if(!activeChat)return;const {data,error}=await sb.from("messages").select("*").eq("conversation_id",activeChat.conversation.id).order("created_at");if(error){$("messagesBox").innerHTML="<div class='muted'>تعذر تحميل الرسائل</div>";return}$("messagesBox").innerHTML=(data||[]).map(m=>{let ticks="";if(m.sender_id===me.id){ticks=m.read_at?"<span class='ticks read'>✓✓</span>":m.delivered_at?"<span class='ticks'>✓✓</span>":"<span class='ticks'>✓</span>"}return `<div class="bubble ${m.sender_id===me.id?"mine":"theirs"}">${esc(m.content)}<small>${fmt(m.created_at)} ${ticks}</small></div>`}).join("");$("messagesBox").scrollTop=$("messagesBox").scrollHeight}
@@ -175,7 +224,7 @@ async function openChat(c){
   $('chatTitle').textContent=u?.display_name||'محادثة';
   $('chatStatus').textContent=userOnlineText(u?.last_seen);
   setChatAvatar(u);$('chatModal').classList.remove('hidden');
-  await subscribeCallRoom(c.id);await markDelivered();await loadMessages();await markRead();applyChatWallpaper();
+  await markDelivered();await loadMessages();await markRead();applyChatWallpaper();
 }
 
 function messageMediaMarkup(m){
@@ -200,7 +249,7 @@ async function loadMessages(){if(!activeChat)return;const {data,error}=await sb.
 async function sendMessage(){
   const content=$('messageInput').value.trim();
   if(!content||!activeChat)return;
-  const r=await sb.from('messages').insert({sender_id:me.id,receiver_id:activeChat.user.id,content,conversation_id:activeChat.conversation.id,message_type:'text'});
+  const r=await sb.from('messages').insert({sender_id:me.id,receiver_id:activeChat.user.id,content,conversation_id:activeChat.conversation.id});
   if(r.error)return toast('تعذر إرسال الرسالة: '+r.error.message);
   $('messageInput').value='';await loadMessages();await loadChats();
 }
@@ -637,8 +686,6 @@ setTimeout(()=>{try{enhanceUI();applyTheme();applyV4Font();applyChatWallpaper();
     wireOtherProfileButtons(u);
   }
   function wireOtherProfileButtons(u){
-    $('otherVoiceBtn').onclick=()=>{closeOtherProfile();startCall(false)};
-    $('otherVideoBtn').onclick=()=>{closeOtherProfile();startCall(true)};
     $('otherAddBtn').onclick=()=>{closeOtherProfile();addActiveContact()};
     $('otherSarhnyBtn').onclick=()=>{closeOtherProfile();go('sarhnyPage');$('sarhnyUsername').value=u.username||'';$('sarhnyContent').focus()};
     $('otherDeleteChatBtn').onclick=async()=>{closeOtherProfile();await deleteChat()};
@@ -667,8 +714,8 @@ setTimeout(()=>{try{enhanceUI();applyTheme();applyV4Font();applyChatWallpaper();
 /* ===== V9 Contact profile / privacy controls ===== */
 async function getContactPrefs(peerId){
   if(!me?.id||!peerId)return {muted:false,calls_blocked:false,blocked:false};
-  const r=await sb.from('contact_preferences').select('muted,calls_blocked,blocked').eq('user_id',me.id).eq('peer_id',peerId).maybeSingle();
-  return r.error?{muted:false,calls_blocked:false,blocked:false}:(r.data||{muted:false,calls_blocked:false,blocked:false});
+  const r=await sb.from('contact_preferences').select('muted,blocked').eq('user_id',me.id).eq('peer_id',peerId).maybeSingle();
+  return r.error?{muted:false,blocked:false}:(r.data||{muted:false,blocked:false});
 }
 async function saveContactPrefs(peerId,patch){
   if(!me?.id||!peerId)return {error:new Error('missing user')};
@@ -691,12 +738,10 @@ async function showContactPrivacy(){
   openContactTools('الخصوصية والأمان',`
     <div class="contact-settings-list">
       ${btn('cpMute','🔕','كتم إشعارات هذا الشخص',p.muted)}
-      ${btn('cpCalls','📵','منع المكالمات من هذا الشخص',p.calls_blocked)}
       ${btn('cpBlock','🚫','حظر هذا الشخص',p.blocked)}
       <button class="contact-setting-btn danger" id="cpReport"><span class="contact-setting-icon">⚠️</span><span class="contact-setting-copy"><strong>إبلاغ عن الشخص</strong><small>إرسال بلاغ إلى ComboApp</small></span><span>›</span></button>
     </div>`);
   $('cpMute').onclick=async()=>{const r=await saveContactPrefs(u.id,{muted:!p.muted});if(r.error)return toast('تعذر حفظ الإعداد');toast(!p.muted?'تم كتم الإشعارات':'تم تشغيل الإشعارات');showContactPrivacy()};
-  $('cpCalls').onclick=async()=>{const r=await saveContactPrefs(u.id,{calls_blocked:!p.calls_blocked});if(r.error)return toast('تعذر حفظ الإعداد');toast(!p.calls_blocked?'تم منع المكالمات لهذا الشخص':'تم السماح بالمكالمات');showContactPrivacy()};
   $('cpBlock').onclick=async()=>{const r=await saveContactPrefs(u.id,{blocked:!p.blocked});if(r.error)return toast('تعذر حفظ الحظر');toast(!p.blocked?'تم حظر الشخص':'تم إلغاء الحظر');showContactPrivacy()};
   $('cpReport').onclick=()=>showContactReport();
 }
@@ -757,11 +802,6 @@ const _comboOriginalSendMessage=sendMessage;
 sendMessage=async function(){
   if(activeChat?.user){const p=await getContactPrefs(activeChat.user.id);if(p.blocked)return toast('هذا الشخص محظور. ألغِ الحظر أولًا.');}
   return _comboOriginalSendMessage();
-};
-const _comboOriginalStartCall=startCall;
-startCall=async function(video){
-  if(activeChat?.user){const p=await getContactPrefs(activeChat.user.id);if(p.blocked)return toast('هذا الشخص محظور');if(p.calls_blocked)return toast('المكالمات لهذا الشخص ممنوعة');}
-  return _comboOriginalStartCall(video);
 };
 const _comboOriginalNotifyIncomingMessage=notifyIncomingMessage;
 notifyIncomingMessage=async function(m){

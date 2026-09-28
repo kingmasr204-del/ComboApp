@@ -130,3 +130,6 @@ input,textarea,.modal-search{background:#061a21!important;border-color:#15515a!i
 .top-settings,.top-bell{position:relative}.top-bell.bell-off{opacity:.65}.top-bell{transition:transform .2s}.top-bell:active{transform:scale(.9)}
 .bell-shake{animation:comboBellShake .65s ease}.danger-setting strong{color:#ff6575}
 @keyframes comboBellShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-9deg)}80%{transform:rotate(6deg)}}
+
+/* V12: calls removed */
+.chat-head-actions{margin-inline-start:auto;display:flex;gap:4px}.chat-head .icon-btn{position:relative;z-index:2}.composer{position:relative;z-index:3}.send-round{cursor:pointer;flex:none}.composer input{pointer-events:auto}.modal-panel.chat-panel{pointer-events:auto}
