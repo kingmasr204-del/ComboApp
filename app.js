@@ -20,7 +20,7 @@ function showAuth(){$("authScreen").classList.remove("hidden");$("appScreen").cl
 function showRecovery(){$("authScreen").classList.remove("hidden");$("appScreen").classList.add("hidden");$("loginPanel").classList.add("hidden");$("signupPanel").classList.add("hidden");$("recoveryPanel").classList.remove("hidden")}
 function bind(){
  $("showSignupBtn").onclick=()=>{$("loginPanel").classList.add("hidden");$("signupPanel").classList.remove("hidden")};$("showLoginBtn").onclick=()=>{$("signupPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden")};$("loginBtn").onclick=login;$("signupBtn").onclick=signup;$("forgotBtn").onclick=resetPassword;$("saveNewPasswordBtn").onclick=saveNewPassword;
- $("logoutBtn").onclick=logout;$("logoutProfileBtn").onclick=logout;$("profileBtn").onclick=()=>go("profilePage");$("notifyBtn").onclick=requestNotifications;
+ $("logoutBtn")?.addEventListener("click",logout);$("logoutProfileBtn")?.addEventListener("click",logout);$("profileBtn")?.addEventListener("click",()=>go("profilePage"));$("notifyBtn").onclick=toggleGlobalNotifications;$("settingsTopBtn").onclick=openGlobalSettings;$("closeGlobalSettingsBtn").onclick=closeGlobalSettings;$("openProfileSetting").onclick=()=>{closeGlobalSettings();go("profilePage")};$("openPrivacySetting").onclick=()=>{closeGlobalSettings();showPrivacy()};$("openAppSettings").onclick=()=>{closeGlobalSettings();showSettings()};$("openChatSettings").onclick=()=>{closeGlobalSettings();showChatStyle()};$("openWallpaperSetting").onclick=()=>{closeGlobalSettings();showWallpaper()};$("openCallSettings").onclick=()=>{closeGlobalSettings();openSimple("إعدادات المكالمات",`<div class="settings-info live-settings"><button class="setting-live" id="callNotifySetting">📞 السماح بمكالمات البرنامج <b>${setting("call_notifications","on")==="on"?"مفعلة":"متوقفة"}</b></button><button class="setting-live" id="callSoundSetting">🔊 صوت المكالمات <b>${setting("call_sound","on")==="on"?"مفعل":"متوقف"}</b></button></div>`,"تم");setTimeout(()=>{$("callNotifySetting")?.addEventListener("click",()=>{setSetting("call_notifications",setting("call_notifications","on")==="on"?"off":"on");showSettings()});$("callSoundSetting")?.addEventListener("click",()=>{setSetting("call_sound",setting("call_sound","on")==="on"?"off":"on");showSettings()})},30)};$("openAccountSetting").onclick=()=>{closeGlobalSettings();go("profilePage")};$("globalLogoutBtn").onclick=logout;updateNotificationBell();
  document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>go(b.dataset.page));$("userSearch").oninput=searchUsers;$("newChatBtn").onclick=openContacts;$("refreshBtn").onclick=loadChats;$("archivedBtn").onclick=()=>{go("archivedPage");loadArchived()};$("backHomeBtn").onclick=()=>go("homePage");
  $("sendMessageBtn").onclick=sendMessage;$("messageInput").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage()}});$("emojiBtn").onclick=toggleEmoji;$("attachContactBtn").onclick=openContacts;
  $("closeChatBtn").onclick=closeChat;$("chatMenuBtn").onclick=()=>$("chatMenuModal").classList.remove("hidden");$("menuCancelBtn").onclick=closeChatMenu;$("menuArchiveBtn").onclick=archiveChat;$("menuLockBtn").onclick=lockChat;$("menuDeleteBtn").onclick=deleteChat;$("menuReportBtn").onclick=reportChat;$("menuAddContactBtn").onclick=addActiveContact;
@@ -35,7 +35,7 @@ async function signup(){const name=$("signupName").value.trim(),username=$("sign
 async function resetPassword(){const email=$("loginEmail").value.trim();if(!email)return toast("اكتب بريدك أولًا");const redirectTo=window.location.origin+window.location.pathname;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error)return toast(error.message);toast("تم إرسال رابط تغيير كلمة السر")}
 async function saveNewPassword(){const p=$("newPassword").value,p2=$("newPassword2").value;if(p.length<6)return toast("كلمة السر 6 أحرف على الأقل");if(p!==p2)return toast("كلمتا السر غير متطابقتين");const {error}=await sb.auth.updateUser({password:p});if(error)return toast(error.message);toast("تم تغيير كلمة السر");await sb.auth.signOut();showAuth()}
 async function logout(){await stopCall(false);await sb.auth.signOut();location.reload()}
-async function enterApp(){if(!session)return;const {data,error}=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();if(error)return toast("تعذر تحميل الحساب");if(!data){const m=session.user.user_metadata||{};const fallback={id:session.user.id,display_name:m.display_name||"مستخدم",username:m.username||session.user.email.split("@")[0].replace(/[^a-z0-9_]/gi,"").slice(0,24)||"user",phone:m.phone||null,avatar_url:null};const r=await sb.from("profiles").upsert(fallback,{onConflict:"id"});if(r.error)return toast("تعذر تجهيز الحساب");me=fallback}else me=data;await loadCloudSettings();await loadCloudContacts();$("authScreen").classList.add("hidden");$("appScreen").classList.remove("hidden");await loadProfile();await loadChats();await loadStories();await loadSarhnyInbox();await requestNotifications();await loadCallHistory();await checkAppLock();subscribeMessages();await subscribeCallRooms()}
+async function enterApp(){if(!session)return;const {data,error}=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();if(error)return toast("تعذر تحميل الحساب");if(!data){const m=session.user.user_metadata||{};const fallback={id:session.user.id,display_name:m.display_name||"مستخدم",username:m.username||session.user.email.split("@")[0].replace(/[^a-z0-9_]/gi,"").slice(0,24)||"user",phone:m.phone||null,avatar_url:null};const r=await sb.from("profiles").upsert(fallback,{onConflict:"id"});if(r.error)return toast("تعذر تجهيز الحساب");me=fallback}else me=data;await loadCloudSettings();await loadCloudContacts();$("authScreen").classList.add("hidden");$("appScreen").classList.remove("hidden");await loadProfile();await loadChats();await loadStories();await loadSarhnyInbox();updateNotificationBell();await loadCallHistory();await checkAppLock();subscribeMessages();await subscribeCallRooms()}
 function go(page){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(page).classList.add("active");document.querySelectorAll(".nav").forEach(x=>x.classList.toggle("active",x.dataset.page===page));if(page==="homePage")loadChats();if(page==="storiesPage")loadStories();if(page==="sarhnyPage")loadSarhnyInbox();if(page==="callsPage")loadCallHistory()}
 async function searchUsers(){const q=$("userSearch").value.trim();if(!q){$("searchResults").classList.add("hidden");return}const safe=q.replace(/[%_,]/g," ");const {data}=await sb.from("profiles").select("id,username,display_name,avatar_url").or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`).neq("id",me.id).limit(10);$("searchResults").classList.remove("hidden");$("searchResults").innerHTML=(data||[]).map(u=>`<div class="result-item" data-id="${u.id}"><div class="avatar">${u.avatar_url?`<img src="${esc(u.avatar_url)}">`:initials(u.display_name)}</div><div class="chat-info"><strong>${esc(u.display_name)}</strong><small>@${esc(u.username)}</small></div><button class="contact-action primary-inline">دردشة</button></div>`).join("")||"<div class='muted' style='padding:12px'>مفيش نتائج</div>";$("searchResults").querySelectorAll(".result-item").forEach(e=>e.onclick=()=>openUser(e.dataset.id))}
 async function openUser(userId){const {data,error}=await sb.from("conversations").select("*").or(`and(user1_id.eq.${me.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${me.id})`).limit(1).maybeSingle();if(error&&error.code!=="PGRST116")return toast("تعذر فتح المحادثة");let c=data;if(!c){const r=await sb.from("conversations").insert({user1_id:me.id,user2_id:userId}).select().single();if(r.error)return toast("تعذر إنشاء المحادثة");c=r.data}$("searchResults").classList.add("hidden");$("userSearch").value="";await subscribeCallRoom(c.id);await openChat(c)}
@@ -50,8 +50,13 @@ async function markDelivered(){if(!activeChat)return;await sb.from("messages").u
 async function loadMessages(){if(!activeChat)return;const {data,error}=await sb.from("messages").select("*").eq("conversation_id",activeChat.conversation.id).order("created_at");if(error){$("messagesBox").innerHTML="<div class='muted'>تعذر تحميل الرسائل</div>";return}$("messagesBox").innerHTML=(data||[]).map(m=>{let ticks="";if(m.sender_id===me.id){ticks=m.read_at?"<span class='ticks read'>✓✓</span>":m.delivered_at?"<span class='ticks'>✓✓</span>":"<span class='ticks'>✓</span>"}return `<div class="bubble ${m.sender_id===me.id?"mine":"theirs"}">${esc(m.content)}<small>${fmt(m.created_at)} ${ticks}</small></div>`}).join("");$("messagesBox").scrollTop=$("messagesBox").scrollHeight}
 async function sendMessage(){const content=$("messageInput").value.trim();if(!content||!activeChat)return;const r=await sb.from("messages").insert({sender_id:me.id,receiver_id:activeChat.user.id,content,conversation_id:activeChat.conversation.id,message_type:"text"});if(r.error)return toast("تعذر إرسال الرسالة");$("messageInput").value="";await loadMessages();await loadChats()}
 async function markRead(){if(!activeChat)return;const now=new Date().toISOString();await sb.from("messages").update({delivered_at:now,read_at:now}).eq("conversation_id",activeChat.conversation.id).eq("receiver_id",me.id).is("read_at",null);await loadMessages()}
-async function requestNotifications(){if(!("Notification"in window))return;if(Notification.permission==="default")try{await Notification.requestPermission()}catch(e){}}
-async function notifyIncomingMessage(m){if(m.receiver_id!==me.id||m.sender_id===me.id)return;await sb.from("messages").update({delivered_at:new Date().toISOString()}).eq("id",m.id).eq("receiver_id",me.id);if(activeChat?.conversation?.id===m.conversation_id)return;const {data:u}=await sb.from("profiles").select("display_name").eq("id",m.sender_id).maybeSingle();toast(`💬 ${u?.display_name||"رسالة جديدة"}: ${m.content||"رسالة"}`);if("Notification"in window&&Notification.permission==="granted")try{new Notification(u?.display_name||"رسالة جديدة",{body:m.content||"رسالة جديدة",icon:"logo.png"})}catch(e){}}
+function notificationsEnabled(){return setting("notifications","on")!=="off"}
+function updateNotificationBell(){const b=$("notifyBtn");if(!b)return;b.textContent=notificationsEnabled()?"🔔":"🔕";b.classList.toggle("bell-off",!notificationsEnabled());b.title=notificationsEnabled()?"إيقاف إشعارات البرنامج":"تشغيل إشعارات البرنامج"}
+async function toggleGlobalNotifications(){const next=!notificationsEnabled();setComboSetting("notifications",next?"on":"off");updateNotificationBell();if(next){await requestNotifications();toast("تم تشغيل إشعارات البرنامج")}else toast("تم إيقاف إشعارات البرنامج")}
+function openGlobalSettings(){$("globalSettingsModal").classList.remove("hidden")}
+function closeGlobalSettings(){$("globalSettingsModal").classList.add("hidden")}
+async function requestNotifications(){setComboSetting("notifications","on");if(!("Notification"in window))return;if(Notification.permission==="default")try{await Notification.requestPermission()}catch(e){}updateNotificationBell()}
+async function notifyIncomingMessage(m){if(m.receiver_id!==me.id||m.sender_id===me.id)return;if(!notificationsEnabled())return;const bell=$("notifyBtn");if(bell){bell.classList.remove("bell-shake");void bell.offsetWidth;bell.classList.add("bell-shake");setTimeout(()=>bell.classList.remove("bell-shake"),700)}await sb.from("messages").update({delivered_at:new Date().toISOString()}).eq("id",m.id).eq("receiver_id",me.id);if(activeChat?.conversation?.id===m.conversation_id)return;const {data:u}=await sb.from("profiles").select("display_name").eq("id",m.sender_id).maybeSingle();toast(`💬 ${u?.display_name||"رسالة جديدة"}: ${m.content||"رسالة"}`);if("Notification"in window&&Notification.permission==="granted")try{new Notification(u?.display_name||"رسالة جديدة",{body:m.content||"رسالة جديدة",icon:"logo.png"})}catch(e){}}
 function subscribeMessages(){if(messageChannel)sb.removeChannel(messageChannel);messageChannel=sb.channel("messages-"+me.id).on("postgres_changes",{event:"*",schema:"public",table:"messages"},p=>{if(p.eventType==="INSERT"&&p.new?.receiver_id===me.id)notifyIncomingMessage(p.new);if(activeChat&&p.new?.conversation_id===activeChat.conversation.id){loadMessages();if(p.new.receiver_id===me.id)markRead()}loadChats()}).subscribe()}
 function closeChat(){$("chatModal").classList.add("hidden");activeChat=null;$("emojiPanel").classList.add("hidden")}
 function closeChatMenu(){$("chatMenuModal").classList.add("hidden")}
@@ -189,19 +194,7 @@ async function hydrateMessageMedia(){
     else el.innerHTML=`<a href="${url}" target="_blank" rel="noopener">فتح الملف</a>`;
   });
 }
-async function loadMessages(){
-  if(!activeChat)return;
-  const {data,error}=await sb.from('messages').select('*').eq('conversation_id',activeChat.conversation.id).order('created_at');
-  if(error){$('messagesBox').innerHTML='<div class="muted">تعذر تحميل الرسائل</div>';return}
-  $('messagesBox').innerHTML=(data||[]).map(m=>{
-    let ticks='';
-    if(m.sender_id===me.id) ticks=m.read_at?'<span class="ticks read">✓✓</span>':m.delivered_at?'<span class="ticks">✓✓</span>':'<span class="ticks">✓</span>';
-    const body=m.media_path?messageMediaMarkup(m):(m.content?`<div class="message-text">${esc(m.content)}</div>`:'');
-    return `<div class="bubble ${m.sender_id===me.id?'mine':'theirs'}">${body}<small>${fmt(m.created_at)} ${ticks}</small></div>`;
-  }).join('')||'<div class="empty-card">ابدأ المحادثة 👋</div>';
-  $('messagesBox').scrollTop=$('messagesBox').scrollHeight;
-  await hydrateMessageMedia();
-}
+async function loadMessages(){if(!activeChat)return;const {data,error}=await sb.from('messages').select('*').eq('conversation_id',activeChat.conversation.id).order('created_at');if(error){$('messagesBox').innerHTML='<div class="muted">تعذر تحميل الرسائل</div>';return}$('messagesBox').innerHTML=(data||[]).map(m=>{let ticks='';if(m.sender_id===me.id)ticks=m.read_at?'<span class="ticks read">✓✓</span>':m.delivered_at?'<span class="ticks">✓✓</span>':'<span class="ticks">✓</span>';let body='';const c=m.content||'',sm=c.match(/^__combo_sticker__:(\d+):(\d+)$/),gm=c.match(/^__combo_gif__:(\d+)$/);if(m.media_path)body=messageMediaMarkup(m);else if(sm){const p=Number(sm[1]),j=Number(sm[2]),packs=Object.values(STICKER_PACKS),val=packs[p]?.[j]||'✨';body=`<div class="sent-sticker">${val}</div>`}else if(gm){const i=Number(gm[1]),src=GIFS[i]||GIFS[0];body=`<div class="sent-gif"><img src="${src}" alt="GIF متحرك" loading="lazy"></div>`}else if(c)body=`<div class="message-text">${esc(c)}</div>`;return `<div class="bubble ${m.sender_id===me.id?'mine':'theirs'}">${body}<small>${fmt(m.created_at)} ${ticks}</small></div>`}).join('')||'<div class="empty-card">ابدأ المحادثة 👋</div>';$('messagesBox').scrollTop=$('messagesBox').scrollHeight;await hydrateMessageMedia()}
 
 async function sendMessage(){
   const content=$('messageInput').value.trim();
@@ -234,19 +227,12 @@ async function handleChatFile(e){
 
 const COMBO_EMOJIS='😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫡 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 👍 👎 👌 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 🤏 💪 🙏 👏 🙌 🫶 👀 👄 💋 🔥 ⭐ 🌟 ✨ 💫 💥 🎉 🎊 🎈 🎁 👑 💎 🚀 ⚡ 💯 😂 😍 🤍 💚'.split(' ');
 function toggleEmoji(){$('emojiPanel').classList.toggle('hidden');if(!$('emojiPanel').classList.contains('hidden'))showEmojiTab('emoji')}
-function showEmojiTab(tab){
-  document.querySelectorAll('.emoji-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-  const box=$('emojiContent');
-  if(tab==='emoji'){
-    box.innerHTML=`<div class="native-emoji-grid">${COMBO_EMOJIS.map(x=>`<button type="button">${x}</button>`).join('')}</div>`;
-    box.querySelectorAll('button').forEach(b=>b.onclick=()=>insertAtCursor($('messageInput'),b.textContent));
-  }else if(tab==='sticker'){
-    box.innerHTML='<div class="sticker-grid">'+['😍','😂','🥰','😭','😎','🔥','❤️','👍','🎉','🤍','👑','💚','🤣','🥺','😱','🥳'].map(x=>`<button type="button">${x}</button>`).join('')+'</div>';
-    box.querySelectorAll('button').forEach(b=>b.onclick=()=>sendMessageContent(b.textContent));
-  }else{
-    box.innerHTML='<div class="gif-grid"><button type="button">😂 GIF</button><button type="button">❤️ GIF</button><button type="button">🔥 GIF</button><button type="button">🎉 GIF</button><p class="muted">GIF الحقيقي يحتاج ربط Tenor أو GIPHY API.</p></div>';
-  }
-}
+const COMBO_EMOJI_CATS={smileys:'😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫡 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃',people:'👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 👃 🧠 🫀 🫁 👀 👁️ 👅 👄 💋 ❤️‍🔥 💕 💞 💓 💗 💖 💘 💝 💟',animals:'🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪲 🐛 🦋 🐌 🐞 🐜 🕷️ 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦀 🐠 🐟 🐡 🐬 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🦍 🐘 🦏 🦒 🦘 🦬 🐪 🐫 🦙 🐐 🐑 🐏 🐕 🐈 🐓 🦃 🕊️ 🐇 🐿️ 🦔',food:'🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍞 🥐 🥖 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🥙 🧆 🌮 🌯 🥗 🍝 🍜 🍲 🍛 🍣 🍤 🍚 🍙 🍘 🍥 🥠 🥮 🍰 🎂 🧁 🍩 🍪 🍫 🍬 🍭 ☕ 🧃 🥤 🧋 🍺 🍻 🍷 🍸 🍹 🥂',activities:'⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🪁 🏓 🏸 🏒 🥍 🏏 ⛳ 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖️ 🎗️ 🎫 🎟️ 🎪 🎭 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🪕 🎻',travel:'🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍️ 🚲 🛴 🚨 🚔 🚍 🚘 🚖 ✈️ 🛫 🛬 🛩️ 🚀 🛸 🚁 🛶 ⛵ 🚤 🛥️ 🚢 ⚓ 🗺️ 🗿 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ 🏖️ 🏝️ 🏜️ 🌋 🗻 🏕️ ⛺ 🏠 🏡 🏢 🏥 🏦 🏨 🏪 🏫',objects:'⌚ 📱 💻 ⌨️ 🖥️ 🖨️ 🖱️ 💾 💿 📷 📸 📹 🎥 📺 📻 🎙️ 🔍 🔎 💡 🔦 🕯️ 🧯 🛒 💰 💳 💎 ⚖️ 🔑 🔒 🔓 🔨 🪛 🔧 🪚 🧰 🧲 🔬 🔭 📡 💉 💊 🚪 🛏️ 🛋️ 🚿 🧴 🧹 🧺 🧻 🧼 🪥 🧽 🪣 🧸 🪆 🎁 🎈 🎉 🎊 ✉️ 📩 📦 📝 📚 📖 🔖 🗂️ 📅 📌 📍 ✂️ 🖊️ ✏️ 📎',symbols:'❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ✨ ⭐ 🌟 💫 ⚡ 🔥 💥 💯 ❗ ❓ ⁉️ ‼️ ❌ ⭕ ✅ ☑️ ✔️ ➕ ➖ ✖️ ➗ ♻️ ⚠️ 🚫 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪ 🟤 🟩 🟦 🟥 🟨 🟪 ⬆️ ⬇️ ⬅️ ➡️ ↗️ ↘️ ↙️ ↖️ 🔝 🔚 🔜 🔙 ♾️ ©️ ®️ ™️ #️⃣ *️⃣ 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣'};
+const STICKER_PACKS={'😂 ضحك':['😂','🤣','😹','😆','😅','🤭','😜','🤪','😎','🤓','🥳','😱'],'❤️ حب':['❤️','😍','🥰','😘','💋','💕','💞','💓','💗','💖','💘','💝'],'🔥 حماس':['🔥','⚡','💥','💯','🚀','👑','🏆','🎉','🎊','💪','👏','🙌'],'🐾 حيوانات':['🐶','🐱','🐼','🦊','🐻','🐨','🐯','🦁','🐰','🐸','🐵','🦄'],'👍 ردود':['👍','👎','👌','🙏','👏','🙌','🤝','✌️','🤞','👋','💚','✅']};
+const GIFS=Array.from({length:12},(_,i)=>`assets/gifs/gif_${i+1}.gif`);
+function sendRichReaction(kind,value){if(!activeChat)return toast('افتح محادثة أولًا');const content=kind==='sticker'?`__combo_sticker__:${value}`:`__combo_gif__:${value}`;sb.from('messages').insert({sender_id:me.id,receiver_id:activeChat.user.id,content,conversation_id:activeChat.conversation.id,message_type:kind}).then(r=>{if(r.error)return toast('تعذر إرسال العنصر');loadMessages();loadChats()});$('emojiPanel').classList.add('hidden')}
+function renderEmojiCategory(cat){const box=$('emojiContent'),list=(COMBO_EMOJI_CATS[cat]||'').split(' ');const icons={smileys:'😀',people:'👋',animals:'🐾',food:'🍕',activities:'⚽',travel:'🚗',objects:'💡',symbols:'❤️'};box.innerHTML=`<div class="emoji-category-bar">${Object.keys(COMBO_EMOJI_CATS).map(k=>`<button type="button" class="emoji-cat ${k===cat?'active':''}" data-cat="${k}">${icons[k]}</button>`).join('')}</div><div class="native-emoji-grid">${list.map(x=>`<button type="button">${x}</button>`).join('')}</div>`;box.querySelectorAll('.emoji-cat').forEach(b=>b.onclick=()=>renderEmojiCategory(b.dataset.cat));box.querySelectorAll('.native-emoji-grid button').forEach(b=>b.onclick=()=>insertAtCursor($('messageInput'),b.textContent))}
+function showEmojiTab(tab){document.querySelectorAll('.emoji-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));const box=$('emojiContent');if(tab==='emoji'){renderEmojiCategory('smileys');return}if(tab==='sticker'){const packs=Object.entries(STICKER_PACKS);box.innerHTML=`<div class="sticker-pack-tabs">${packs.map(([n],i)=>`<button type="button" class="sticker-pack-tab ${i===0?'active':''}" data-pack="${i}">${n}</button>`).join('')}</div><div id="stickerPackGrid" class="sticker-grid"></div>`;const renderPack=i=>{document.querySelectorAll('.sticker-pack-tab').forEach((b,j)=>b.classList.toggle('active',j===i));const vals=packs[i][1];$('stickerPackGrid').innerHTML=vals.map((x,j)=>`<button type="button" class="sticker-item"><span>${x}</span><small>${packs[i][0].split(' ')[1]||'ملصق'}</small></button>`).join('');$('stickerPackGrid').querySelectorAll('button').forEach((b,j)=>b.onclick=()=>sendRichReaction('sticker',`${i}:${j}`))};box.querySelectorAll('.sticker-pack-tab').forEach((b,i)=>b.onclick=()=>renderPack(i));renderPack(0);return}box.innerHTML=`<div class="gif-title">GIF متحرك</div><div class="gif-grid real-gifs">${GIFS.map((src,i)=>`<button type="button" class="gif-item"><img src="${src}" alt="GIF ${i+1}"><span>إرسال</span></button>`).join('')}</div>`;box.querySelectorAll('.gif-item').forEach((b,i)=>b.onclick=()=>sendRichReaction('gif',String(i)))}
 function insertAtCursor(input,text){const s=input.selectionStart??input.value.length,e=input.selectionEnd??input.value.length;input.value=input.value.slice(0,s)+text+input.value.slice(e);input.focus();input.selectionStart=input.selectionEnd=s+text.length}
 function sendMessageContent(text){$('messageInput').value=text;$('emojiPanel').classList.add('hidden');sendMessage()}
 
@@ -674,4 +660,206 @@ setTimeout(()=>{try{enhanceUI();applyTheme();applyV4Font();applyChatWallpaper();
   document.querySelectorAll('.modern-call-btn img').forEach(img=>{img.onerror=()=>{img.style.display='none';img.parentElement.textContent=img.alt==='صوت'?'☎':'▣'}});
   // Make sure profile page action text never mentions numeric instructions.
   const hint=document.querySelector('.profile-hint');if(hint)hint.textContent='اضغط على الصورة لاختيار: تغيير، حذف، أو إضافة صور وفيديوهات';
+})();
+
+
+/* ===== V9 Contact profile / privacy controls ===== */
+async function getContactPrefs(peerId){
+  if(!me?.id||!peerId)return {muted:false,calls_blocked:false,blocked:false};
+  const r=await sb.from('contact_preferences').select('muted,calls_blocked,blocked').eq('user_id',me.id).eq('peer_id',peerId).maybeSingle();
+  return r.error?{muted:false,calls_blocked:false,blocked:false}:(r.data||{muted:false,calls_blocked:false,blocked:false});
+}
+async function saveContactPrefs(peerId,patch){
+  if(!me?.id||!peerId)return {error:new Error('missing user')};
+  const current=await getContactPrefs(peerId);
+  return await sb.from('contact_preferences').upsert({user_id:me.id,peer_id:peerId,...current,...patch,updated_at:new Date().toISOString()},{onConflict:'user_id,peer_id'});
+}
+async function ensureContactPrefsReady(){
+  const r=await sb.from('contact_preferences').select('user_id').eq('user_id',me?.id).limit(1);
+  if(r.error){toast('شغّل COMBOAPP_CONTACT_PROFILE_SETUP.sql مرة واحدة في Supabase');return false}return true;
+}
+function openContactTools(title,html){
+  $('contactToolsTitle').textContent=title;$('contactToolsBody').innerHTML=html;$('contactToolsModal').classList.remove('hidden');
+  $('contactToolsClose').onclick=()=>{$('contactToolsModal').classList.add('hidden')};
+}
+async function showContactPrivacy(){
+  if(!activeChat?.user)return;
+  if(!(await ensureContactPrefsReady()))return;
+  const u=activeChat.user,p=await getContactPrefs(u.id);
+  const btn=(id,icon,label,on)=>`<button class="contact-setting-btn" id="${id}"><span class="contact-setting-icon">${icon}</span><span class="contact-setting-copy"><strong>${label}</strong><small>${on?'مفعّل':'متوقف'}</small></span><span class="contact-toggle ${on?'on':''}">${on?'✓':'○'}</span></button>`;
+  openContactTools('الخصوصية والأمان',`
+    <div class="contact-settings-list">
+      ${btn('cpMute','🔕','كتم إشعارات هذا الشخص',p.muted)}
+      ${btn('cpCalls','📵','منع المكالمات من هذا الشخص',p.calls_blocked)}
+      ${btn('cpBlock','🚫','حظر هذا الشخص',p.blocked)}
+      <button class="contact-setting-btn danger" id="cpReport"><span class="contact-setting-icon">⚠️</span><span class="contact-setting-copy"><strong>إبلاغ عن الشخص</strong><small>إرسال بلاغ إلى ComboApp</small></span><span>›</span></button>
+    </div>`);
+  $('cpMute').onclick=async()=>{const r=await saveContactPrefs(u.id,{muted:!p.muted});if(r.error)return toast('تعذر حفظ الإعداد');toast(!p.muted?'تم كتم الإشعارات':'تم تشغيل الإشعارات');showContactPrivacy()};
+  $('cpCalls').onclick=async()=>{const r=await saveContactPrefs(u.id,{calls_blocked:!p.calls_blocked});if(r.error)return toast('تعذر حفظ الإعداد');toast(!p.calls_blocked?'تم منع المكالمات لهذا الشخص':'تم السماح بالمكالمات');showContactPrivacy()};
+  $('cpBlock').onclick=async()=>{const r=await saveContactPrefs(u.id,{blocked:!p.blocked});if(r.error)return toast('تعذر حفظ الحظر');toast(!p.blocked?'تم حظر الشخص':'تم إلغاء الحظر');showContactPrivacy()};
+  $('cpReport').onclick=()=>showContactReport();
+}
+function showContactReport(){
+  const u=activeChat?.user;if(!u)return;
+  openContactTools('إبلاغ عن '+(u.display_name||'الشخص'),`<textarea id="contactReportReason" maxlength="500" placeholder="اكتب سبب البلاغ (اختياري)"></textarea><button id="sendContactReport" class="primary" style="width:100%;margin-top:10px">إرسال البلاغ</button>`);
+  $('sendContactReport').onclick=async()=>{const reason=$('contactReportReason').value.trim()||'بلاغ من المستخدم';const r=await sb.from('reports').insert({reporter_id:me.id,reported_user_id:u.id,reason});if(r.error)return toast('تعذر إرسال البلاغ');$('contactToolsModal').classList.add('hidden');toast('تم إرسال البلاغ')};
+}
+async function showContactMedia(){
+  const c=activeChat?.conversation,u=activeChat?.user;if(!c)return;
+  const r=await sb.from('messages').select('id,content,created_at,message_type,media_path,media_mime,sender_id').eq('conversation_id',c.id).order('created_at',{ascending:false}).limit(300);
+  if(r.error)return toast('تعذر تحميل الوسائط');
+  const msgs=r.data||[],media=msgs.filter(m=>m.media_path),links=msgs.filter(m=>/(https?:\/\/[^\s]+)/i.test(m.content||''));
+  const mediaHtml=media.length?`<div class="contact-media-grid">${media.map(m=>`<button class="contact-media-card" data-media-path="${esc(m.media_path)}" data-media-mime="${esc(m.media_mime||'')}" type="button"><span>${m.media_mime?.startsWith('video/')?'🎬':m.media_mime?.startsWith('audio/')?'🎵':m.media_mime?.startsWith('image/')?'🖼️':'📎'}</span><small>${fmt(m.created_at)}</small></button>`).join('')}</div>`:'<div class="empty-card">مفيش وسائط أو ملفات لسه.</div>';
+  const linksHtml=links.length?`<div class="contact-links-list">${links.map(m=>{const x=(m.content||'').match(/https?:\/\/[^\s]+/i)?.[0]||'';return `<a href="${esc(x)}" target="_blank" rel="noopener" class="contact-link-row">🔗 <span>${esc(x)}</span><small>${fmt(m.created_at)}</small></a>`}).join('')}</div>`:'<div class="empty-card">مفيش لينكات في المحادثة.</div>';
+  openContactTools('الوسائط والروابط والملفات',`<div class="media-tabs"><button class="media-tab active" data-media-tab="media">الوسائط والملفات (${media.length})</button><button class="media-tab" data-media-tab="links">الروابط (${links.length})</button></div><div id="contactMediaBody">${mediaHtml}</div>`);
+  document.querySelectorAll('[data-media-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-media-tab]').forEach(x=>x.classList.toggle('active',x===b));$('contactMediaBody').innerHTML=b.dataset.mediaTab==='links'?linksHtml:mediaHtml;bindContactMediaCards()});
+  bindContactMediaCards();
+}
+function bindContactMediaCards(){document.querySelectorAll('.contact-media-card').forEach(b=>b.onclick=async()=>{const path=b.dataset.mediaPath,mime=b.dataset.mediaMime||'';const r=await sb.storage.from('chat-media').createSignedUrl(path,3600);if(r.error)return toast('تعذر فتح الملف');openContactTools('معاينة الملف',mime.startsWith('image/')?`<img class="contact-media-preview" src="${esc(r.data.signedUrl)}" alt="صورة">`:mime.startsWith('video/')?`<video class="contact-media-preview" src="${esc(r.data.signedUrl)}" controls autoplay playsinline></video>`:mime.startsWith('audio/')?`<audio class="contact-audio-preview" src="${esc(r.data.signedUrl)}" controls autoplay></audio>`:`<a class="primary" style="display:block;text-align:center" href="${esc(r.data.signedUrl)}" target="_blank" rel="noopener">فتح الملف</a>`)})}
+async function showContactSearch(){
+  const c=activeChat?.conversation;if(!c)return;const r=await sb.from('messages').select('content,created_at,sender_id').eq('conversation_id',c.id).order('created_at',{ascending:false}).limit(500);if(r.error)return toast('تعذر تحميل الرسائل');
+  openContactTools('البحث في المحادثة',`<input id="contactSearchInput" class="modal-search" placeholder="اكتب كلمة للبحث..."><div id="contactSearchResults" class="contact-search-results"><div class="muted">اكتب كلمة للبحث داخل المحادثة.</div></div>`);
+  $('contactSearchInput').oninput=()=>{const q=$('contactSearchInput').value.trim().toLowerCase();const rows=q?(r.data||[]).filter(m=>(m.content||'').toLowerCase().includes(q)):[];$('contactSearchResults').innerHTML=rows.length?rows.map(m=>`<div class="contact-search-row"><span>${esc(m.content||'رسالة')}</span><small>${fmt(m.created_at)}</small></div>`).join(''):'<div class="muted">مفيش نتائج.</div>'};
+}
+async function openEnhancedOtherProfile(u){
+  if(!u)return;
+  $('otherProfileName').textContent=u.display_name||'مستخدم';
+  $('otherProfileUsername').textContent=u.username?'@'+u.username:'';
+  $('otherProfilePhone').textContent=u.phone?'📱 '+u.phone:'';
+  $('otherProfileBio').textContent=u.bio||'';
+  $('otherProfileStatus').textContent=userOnlineText(u.last_seen);
+  $('otherProfileAvatar').innerHTML=u.avatar_url?`<img src="${esc(u.avatar_url)}">`:esc(initials(u.display_name));
+  $('otherProfileModal').classList.remove('hidden');
+  const p=await getContactPrefs(u.id);
+  $('otherNotifyBtn').querySelector('strong').textContent=p.muted?'الإشعارات (مكتومة)':'الإشعارات';
+  $('otherBlockBtn').querySelector('strong').textContent=p.blocked?'إلغاء حظر الشخص':'حظر الشخص';
+  $('otherNotifyBtn').onclick=async()=>{const r=await saveContactPrefs(u.id,{muted:!p.muted});if(r.error)return toast('تعذر حفظ الإعداد');toast(!p.muted?'تم كتم الإشعارات':'تم تشغيل الإشعارات');openEnhancedOtherProfile(u)};
+  $('otherMediaBtn').onclick=showContactMedia;
+  $('otherSearchBtn').onclick=showContactSearch;
+  $('otherPrivacyBtn').onclick=showContactPrivacy;
+  $('otherReportBtn').onclick=showContactReport;
+  $('otherBlockBtn').onclick=async()=>{const r=await saveContactPrefs(u.id,{blocked:!p.blocked});if(r.error)return toast('تعذر حفظ الحظر');toast(!p.blocked?'تم حظر الشخص':'تم إلغاء الحظر');openEnhancedOtherProfile(u)};
+}
+function bindEnhancedProfile(){
+  const open=()=>{if(activeChat?.user)openEnhancedOtherProfile(activeChat.user)};
+  $('chatPerson')?.addEventListener('click',e=>{if(e.target.closest('.chat-head-actions'))return;open()});
+  $('chatAvatar')?.addEventListener('click',e=>{e.stopPropagation();open()});
+  $('chatTitle')?.addEventListener('click',e=>{e.stopPropagation();open()});
+  $('chatStatus')?.addEventListener('click',e=>{e.stopPropagation();open()});
+  $('otherProfileAvatar')?.addEventListener('click',e=>{e.stopPropagation()});
+  $('closeOtherProfileBtn')?.addEventListener('click',()=>closeOtherProfile());
+}
+bindEnhancedProfile();
+
+// Respect contact-level mute/block settings in messages and calls.
+const _comboOriginalSendMessage=sendMessage;
+sendMessage=async function(){
+  if(activeChat?.user){const p=await getContactPrefs(activeChat.user.id);if(p.blocked)return toast('هذا الشخص محظور. ألغِ الحظر أولًا.');}
+  return _comboOriginalSendMessage();
+};
+const _comboOriginalStartCall=startCall;
+startCall=async function(video){
+  if(activeChat?.user){const p=await getContactPrefs(activeChat.user.id);if(p.blocked)return toast('هذا الشخص محظور');if(p.calls_blocked)return toast('المكالمات لهذا الشخص ممنوعة');}
+  return _comboOriginalStartCall(video);
+};
+const _comboOriginalNotifyIncomingMessage=notifyIncomingMessage;
+notifyIncomingMessage=async function(m){
+  if(m?.sender_id){const p=await getContactPrefs(m.sender_id);if(p.blocked)return;if(p.muted)return sb.from('messages').update({delivered_at:new Date().toISOString()}).eq('id',m.id).eq('receiver_id',me.id);}
+  return _comboOriginalNotifyIncomingMessage(m);
+};
+const _comboOriginalHandleSignal=handleSignal;
+handleSignal=async function(p){
+  if(p?.type==='offer'&&p.from){const pref=await getContactPrefs(p.from);if(pref.blocked||pref.calls_blocked){await sendCallSignal(p.conversationId,{type:'reject',callId:p.callId,from:me.id,to:p.from});toast(pref.blocked?'تم رفض المكالمة لأن الشخص محظور':'تم منع المكالمة لهذا الشخص');return}}
+  return _comboOriginalHandleSignal(p);
+};
+
+/* ===== V11: Username visibility privacy ===== */
+(function(){
+  async function viewerCanSeeUsername(u){
+    if(!u || !u.username) return false;
+    if(me?.id===u.id) return true;
+    const mode=u.username_visibility||'everyone';
+    if(mode==='everyone') return true;
+    if(mode==='nobody') return false;
+    // "contacts" means the viewer has this person saved as a ComboApp contact.
+    try{
+      const r=await sb.from('user_contacts').select('id').eq('owner_id',u.id).eq('contact_id',me.id).maybeSingle();
+      if(!r.error && r.data) return true;
+      // Older contact schema fallback: viewer saved the target.
+      const r2=await sb.from('user_contacts').select('id').eq('owner_id',me.id).eq('contact_id',u.id).maybeSingle();
+      return !r2.error && !!r2.data;
+    }catch(_){ return false; }
+  }
+  window.comboUsernameVisibilityLabel=function(v){return v==='contacts'?'جهات اتصاله':v==='nobody'?'لا أحد':'الجميع'};
+  window.comboUsernameVisibility=viewerCanSeeUsername;
+
+  const oldShowPrivacy=window.showPrivacy;
+  window.showPrivacy=async function(){
+    const val=(k,def)=>localStorage.getItem('combo_'+k) ?? (me?.[k]||def);
+    const row=(id,label,value)=>`<label class="privacy-row"><span>${label}</span><select id="${id}"><option value="everyone" ${value==='everyone'?'selected':''}>الجميع</option><option value="contacts" ${value==='contacts'?'selected':''}>جهات اتصاله</option><option value="nobody" ${value==='nobody'?'selected':''}>لا أحد</option></select></label>`;
+    const body=`<div class="settings-info privacy-live">
+      <h4>الخصوصية والأمان</h4>
+      ${row('pLast','آخر ظهور',val('privacy_last_seen','everyone'))}
+      ${row('pOnline','من يرى أنني متصل الآن',val('privacy_online','everyone'))}
+      ${row('pAvatar','صورة الملف الشخصي',val('privacy_avatar','everyone'))}
+      ${row('pAbout','النبذة والمعلومات',val('privacy_profile','everyone'))}
+      ${row('pStatus','الحالة',val('privacy_status','everyone'))}
+      ${row('pUsername','من يمكنه رؤية اسم المستخدم',val('username_visibility','everyone'))}
+      <div class="muted" style="margin:8px 0 12px;line-height:1.7">لو اخترت «جهات اتصاله»، اسم المستخدم يظهر فقط للأشخاص الذين أضفتهم أنت كجهة اتصال. أنت تقدر تشوف أسماء المستخدمين للآخرين بشكل طبيعي.</div>
+      ${row('pGroups','إضافتي للمجموعات',val('privacy_groups','everyone'))}
+      ${row('pCalls','من يمكنه الاتصال بي',val('privacy_calls','everyone'))}
+      <label class="privacy-row"><span>إيصالات القراءة</span><input id="pRead" type="checkbox" ${val('read_receipts','on')!=='off'?'checked':''}></label>
+      <label class="privacy-row"><span>مؤشر الكتابة</span><input id="pTyping" type="checkbox" ${val('typing','on')!=='off'?'checked':''}></label>
+      <button id="savePrivacyV11" class="primary">حفظ إعدادات الخصوصية</button>
+    </div>`;
+    openSimple('الخصوصية والأمان',body,'إغلاق');
+    setTimeout(()=>{
+      $('savePrivacyV11')?.addEventListener('click',async()=>{
+        const vals={privacy_last_seen:$('pLast').value,privacy_online:$('pOnline').value,privacy_avatar:$('pAvatar').value,privacy_profile:$('pAbout').value,privacy_status:$('pStatus').value,username_visibility:$('pUsername').value,privacy_groups:$('pGroups').value,privacy_calls:$('pCalls').value,read_receipts:$('pRead').checked?'on':'off',typing:$('pTyping').checked?'on':'off'};
+        Object.entries(vals).forEach(([k,v])=>localStorage.setItem('combo_'+k,v));
+        const db={privacy_last_seen:vals.privacy_last_seen,privacy_avatar:vals.privacy_avatar,privacy_profile:vals.privacy_profile,privacy_status:vals.privacy_status,username_visibility:vals.username_visibility,read_receipts:vals.read_receipts};
+        const r=await sb.from('profiles').update(db).eq('id',me.id);
+        if(!r.error) me={...me,...db};
+        toast(r.error?'تم حفظ الإعدادات على هذا الجهاز':'تم حفظ إعدادات الخصوصية على حسابك');
+        closeSimple();
+      });
+    },40);
+  };
+
+  // Always use the V11 profile renderer so the username visibility rule is respected.
+  window.openOtherProfile=async function(u){
+    if(!u)return;
+    $('otherProfileName').textContent=u.display_name||'مستخدم';
+    const showUser=await viewerCanSeeUsername(u);
+    $('otherProfileUsername').textContent=showUser?'@'+u.username:'اسم المستخدم مخفي';
+    let status='آخر ظهور غير متاح';
+    if(u.privacy_last_seen!=='nobody'){
+      if(u.privacy_last_seen==='contacts'){
+        const r=await sb.from('user_contacts').select('id').eq('owner_id',u.id).eq('contact_id',me.id).maybeSingle();
+        status=r.data?userOnlineText(u.last_seen):'آخر ظهور غير متاح';
+      }else status=userOnlineText(u.last_seen);
+    }
+    $('otherProfileStatus').textContent=status;
+    $('otherProfileAvatar').innerHTML=u.avatar_url?`<img src="${esc(u.avatar_url)}">`:esc(initials(u.display_name));
+    $('otherProfileModal').classList.remove('hidden');
+  };
+
+  // Hide usernames in contact/search cards when the owner's privacy says so.
+  const originalSearchUsers=window.searchUsers;
+  if(typeof originalSearchUsers==='function'){
+    window.searchUsers=async function(){
+      const q=$('userSearch')?.value.trim();
+      if(!q)return originalSearchUsers();
+      const safe=q.replace(/[%_,]/g,' ');
+      const {data}=await sb.from('profiles').select('id,username,display_name,avatar_url,username_visibility').or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`).neq('id',me.id).limit(10);
+      $('searchResults').classList.remove('hidden');
+      const rows=[];
+      for(const u of (data||[])){
+        const show=await viewerCanSeeUsername(u);
+        rows.push(`<div class="result-item" data-id="${u.id}"><div class="avatar">${u.avatar_url?`<img src="${esc(u.avatar_url)}">`:initials(u.display_name)}</div><div class="chat-info"><strong>${esc(u.display_name)}</strong><small>${show?'@'+esc(u.username):'اسم المستخدم مخفي'}</small></div><button class="contact-action primary-inline">دردشة</button></div>`);
+      }
+      $('searchResults').innerHTML=rows.join('')||"<div class='muted' style='padding:12px'>مفيش نتائج</div>";
+      $('searchResults').querySelectorAll('.result-item').forEach(e=>e.onclick=()=>openUser(e.dataset.id));
+    };
+  }
 })();
