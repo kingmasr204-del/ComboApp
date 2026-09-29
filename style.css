@@ -158,3 +158,6 @@ input,textarea,.modal-search{background:#061a21!important;border-color:#15515a!i
 .bottom-compose-btn span{font-size:25px;filter:drop-shadow(0 1px 0 #fff4)}.bottom-compose-btn b{font-size:20px;margin-right:-4px;margin-top:-23px}
 .compose-menu-v16{width:min(460px,94%)}.compose-grid-v16{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}.compose-grid-v16 button{border:1px solid #16434b;background:linear-gradient(145deg,#09222a,#06141a);color:#e9f8f5;border-radius:18px;padding:18px 10px;text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center}.compose-grid-v16 button span{font-size:28px}.compose-grid-v16 button strong{font-size:15px}.compose-grid-v16 button small{color:#83a19e}.v16-community-form{padding:12px;border-top:1px solid #143840;display:grid;gap:9px}.v16-community-form input,.v16-community-form textarea{width:100%;box-sizing:border-box;background:#071a21;color:#fff;border:1px solid #16434b;border-radius:13px;padding:12px}.v16-community-form textarea{min-height:90px;resize:vertical}
 @media(max-width:520px){.bottom-compose-btn{right:14px;bottom:78px}.compose-grid-v16{gap:8px}}
+
+/* AUTH BUTTON FIX */
+.auth-screen{position:relative;z-index:1000;pointer-events:auto}.auth-card{pointer-events:auto}.auth-card button{cursor:pointer;pointer-events:auto;touch-action:manipulation}.auth-card input{pointer-events:auto}
