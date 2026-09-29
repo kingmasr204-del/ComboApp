@@ -2230,3 +2230,302 @@ init();
   .v28-community-modal{display:flex;flex-direction:column;height:min(92vh,760px);background:#06151b;border-radius:20px;overflow:hidden}.v28-comm-title{border:0;background:none;color:#fff;display:flex;gap:10px;align-items:center;text-align:right;cursor:pointer}.v28-comm-title small{display:block;opacity:.65}.v28-comm-title .community-icon{width:45px;height:45px}.v28-comm-title .community-icon img{width:100%;height:100%;object-fit:cover;border-radius:13px}.v28-profile-sheet{background:#07171e;color:#eafffa;width:min(94vw,560px);max-height:90vh;overflow:auto;padding:18px;border-radius:22px;margin:auto}.v28-cp-avatar{width:110px;height:110px;margin:10px auto;border-radius:50%;overflow:hidden;background:#123;display:flex;align-items:center;justify-content:center;font-size:42px}.v28-cp-avatar img{width:100%;height:100%;object-fit:cover}.v28-cp-link{display:flex;gap:6px;margin:10px 0}.v28-cp-link input{flex:1;min-width:0}.v28-cp-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.v28-profile-sheet label{display:flex;gap:10px;align-items:center;padding:13px;margin:8px 0;background:#0c242b;border-radius:12px}.v28-member,.v28-request{display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #18353c}.v28-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.v28-gallery img,.v28-gallery video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}.v28-gif{max-width:220px;max-height:220px;object-fit:contain}.deleted-msg{opacity:.65;font-style:italic}.v28-sheet{background:#07171e;color:#fff;padding:18px;border-radius:18px;width:min(92vw,420px);margin:auto}.v28-sheet button{display:block;width:100%;padding:13px;margin:6px 0;border:0;border-radius:12px;background:#102b33;color:#fff}.v28-sheet .danger{background:#4b1820}.v28-sheet .cancel{background:#173840}
   `;document.head.appendChild(style);
 })();
+/* ComboApp V29 FINAL POLISH PATCH */
+(function V29(){
+  const q=id=>document.getElementById(id);
+  const cur=()=>me?.id||null;
+  const toast29=m=>window.toast?window.toast(m):alert(m);
+  const esc29=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const normPhone=v=>typeof window.normalizePhone==='function'?window.normalizePhone(v):String(v||'').replace(/\D/g,'');
+
+  /* ---------- notification bell: one source of truth ---------- */
+  function notifOn(){ return localStorage.getItem('combo_notifications')!=='off'; }
+  function updateBell(){
+    const b=q('notifyBtn'); if(!b)return;
+    b.textContent=notifOn()?'🔔':'🔕';
+    b.classList.toggle('bell-off',!notifOn());
+    b.setAttribute('aria-pressed',String(!notifOn()));
+    b.title=notifOn()?'إيقاف إشعارات البرنامج':'تشغيل إشعارات البرنامج';
+  }
+  window.updateNotificationBell=updateBell;
+  window.toggleGlobalNotifications=async function(){
+    const next=!notifOn();
+    if(typeof window.setComboSetting==='function')window.setComboSetting('notifications',next?'on':'off');
+    else localStorage.setItem('combo_notifications',next?'on':'off');
+    updateBell();
+    if(next && typeof window.requestNotifications==='function'){
+      try{await window.requestNotifications()}catch(_){ }
+    }
+    toast29(next?'تم تشغيل إشعارات البرنامج':'تم إيقاف إشعارات البرنامج');
+  };
+  const bell=q('notifyBtn');
+  if(bell){bell.onclick=e=>{e.preventDefault();e.stopPropagation();window.toggleGlobalNotifications()};}
+
+  /* ---------- public/contacts username search ---------- */
+  window.searchUsers=async function(){
+    const input=q('userSearch'),out=q('searchResults');
+    if(!input||!out||!cur())return;
+    const raw=input.value.trim().replace(/^@/,'');
+    if(!raw){out.classList.add('hidden');return;}
+    out.classList.remove('hidden');
+    const phoneDigits=normPhone(raw);
+    try{
+      // Exact phone lookup when the user types a phone number.
+      if(/^\+?\d{7,15}$/.test(raw.replace(/[\s()-]/g,''))){
+        const r=await sb.from('profiles').select('id,username,display_name,avatar_url,phone').eq('phone',phoneDigits).neq('id',cur()).limit(5);
+        if(r.error)throw r.error;
+        return renderSearch(r.data||[],'phone');
+      }
+      if(!/^[a-z0-9_.]{1,24}$/i.test(raw)){
+        out.innerHTML='<div class="muted" style="padding:12px">اكتب اسم المستخدم أو رقم الهاتف.</div>';return;
+      }
+      const r=await sb.from('profiles').select('id,username,display_name,avatar_url,phone,username_visibility').ilike('username',raw+'%').neq('id',cur()).limit(50);
+      if(r.error)throw r.error;
+      const contacts=await sb.from('user_contacts').select('name,phone').eq('user_id',cur()).limit(1000);
+      const contactPhones=new Set((contacts.data||[]).map(x=>normPhone(x.phone)));
+      const exact=raw.toLowerCase();
+      const visible=(r.data||[]).filter(u=>{
+        const v=(u.username_visibility||'everyone').toLowerCase();
+        const isExact=String(u.username||'').toLowerCase()===exact;
+        if(v==='nobody'||v==='hidden')return false;
+        if(v==='contacts')return contactPhones.has(normPhone(u.phone));
+        return true;
+      });
+      // Exact username never bypasses a "nobody" privacy setting; contacts still need contact status.
+      renderSearch(visible,'username');
+    }catch(e){console.warn('username search',e);out.innerHTML='<div class="muted" style="padding:12px">تعذر البحث حاليًا.</div>'}
+    function renderSearch(rows){
+      out.innerHTML=rows.length?rows.map(u=>`<div class="result-item" data-id="${esc29(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${esc29(u.avatar_url)}">`:esc29((window.initials?window.initials(u.display_name||u.username):'👤'))}</div><div class="chat-info"><strong>${esc29(u.display_name||u.username||'مستخدم')}</strong><small>@${esc29(u.username||'')}</small></div><button class="contact-action primary-inline">دردشة</button></div>`).join(''):'<div class="muted" style="padding:12px">مفيش نتائج ظاهرة.</div>';
+      out.querySelectorAll('.result-item').forEach(el=>el.onclick=()=>window.openUser?.(el.dataset.id));
+    }
+  };
+  // Replace the old listener so only V29 search runs.
+  const us=q('userSearch');
+  if(us){const fresh=us.cloneNode(true);us.replaceWith(fresh);fresh.addEventListener('input',window.searchUsers);}
+
+  /* ---------- chat list: use saved contact name instead of "مستخدم" ---------- */
+  const baseRenderChats=typeof window.renderChats==='function'?window.renderChats:(typeof renderChats==='function'?renderChats:null);
+  if(baseRenderChats&&!window.__v29ChatNames){
+    window.__v29ChatNames=true;
+    const wrapped=async function(archived){
+      await baseRenderChats(archived);
+      const target=q(archived?'archivedList':'chatList');if(!target||!cur())return;
+      const els=[...target.querySelectorAll('.chat-item[data-cid]')];if(!els.length)return;
+      const ids=els.map(x=>x.dataset.cid);
+      const cr=await sb.from('conversations').select('id,user1_id,user2_id').in('id',ids);if(cr.error)return;
+      const peers=[...new Set((cr.data||[]).map(c=>c.user1_id===cur()?c.user2_id:c.user1_id))];
+      const pr=await sb.from('profiles').select('id,display_name,username,phone').in('id',peers);
+      const pc=Object.fromEntries((pr.data||[]).map(p=>[p.id,p]));
+      const ct=await sb.from('user_contacts').select('name,phone').eq('user_id',cur()).limit(1000);
+      const names=Object.fromEntries((ct.data||[]).filter(x=>x.name).map(x=>[normPhone(x.phone),x.name]));
+      (cr.data||[]).forEach(c=>{
+        const el=target.querySelector(`.chat-item[data-cid="${CSS.escape(c.id)}"]`);if(!el)return;
+        const p=pc[c.user1_id===cur()?c.user2_id:c.user1_id]||{};
+        const label=names[normPhone(p.phone)]||p.display_name||p.username||'مستخدم';
+        const strong=el.querySelector('.chat-info strong');if(strong)strong.textContent=label;
+      });
+    };
+    try{renderChats=wrapped}catch(_){ }
+    window.renderChats=wrapped;
+  }
+
+  /* ---------- contact profile: media/search/privacy/add-to-community all functional ---------- */
+  let viewedUser=null;
+  const baseOpenProfile=window.openOtherProfile;
+  window.openOtherProfile=async function(u){
+    viewedUser=u; await baseOpenProfile?.(u);
+    setTimeout(()=>bindProfileActions(u),30);
+  };
+  async function bindProfileActions(u){
+    const grid=q('otherProfileModal')?.querySelector('.profile-actions-grid');if(!grid||!u)return;
+    grid.innerHTML=`<button id="v29Sarhny"><span>💚</span><small>صارحني</small></button><button id="v29AddContact"><span>👤➕</span><small>إضافة</small></button><button id="v29AddCommunity"><span>👥➕</span><small>إضافة إلى جروب أو قناة</small></button>`;
+    q('v29Sarhny').onclick=()=>{if(!u.username)return toast29('المستخدم ليس لديه يوزر');q('otherProfileModal')?.classList.add('hidden');window.go?.('sarhnyPage');if(q('sarhnyUsername'))q('sarhnyUsername').value=u.username;if(q('sarhnyContent'))q('sarhnyContent').focus()};
+    q('v29AddContact').onclick=async()=>{if(typeof window.addActiveContact==='function'&&activeChat?.user?.id===u.id)return window.addActiveContact();if(!u.phone)return toast29('الجهة دي مش مسجل لها رقم');let list=[];try{list=JSON.parse(localStorage.getItem('combo_contacts')||'[]')}catch(_){ }if(!list.some(x=>normPhone(x.phone)===normPhone(u.phone))){list.push({name:u.display_name||u.username||'مستخدم',phone:u.phone});localStorage.setItem('combo_contacts',JSON.stringify(list));try{await sb.from('user_contacts').insert({user_id:cur(),name:u.display_name||u.username||'مستخدم',phone:u.phone})}catch(_){}}toast29('تمت إضافة جهة الاتصال')};
+    q('v29AddCommunity').onclick=()=>chooseCommunityForUser29(u);
+    // Existing detail buttons are rebound to the actual viewed user.
+    if(q('otherMediaBtn'))q('otherMediaBtn').onclick=()=>showContactMedia29(u);
+    if(q('otherSearchBtn'))q('otherSearchBtn').onclick=()=>showContactSearch29(u);
+    if(q('otherPrivacyBtn'))q('otherPrivacyBtn').onclick=()=>showContactPrivacy29(u);
+    if(q('otherReportBtn'))q('otherReportBtn').onclick=()=>showReport29(u);
+    if(q('otherProfileAvatar'))q('otherProfileAvatar').onclick=()=>{if(u.avatar_url)openProfileViewer29(u)};
+  }
+  function openProfileViewer29(u){
+    const url=u.avatar_url;let v=q('v29ProfileViewer');if(!v){v=document.createElement('div');v.id='v29ProfileViewer';v.className='modal';document.body.appendChild(v)}
+    v.innerHTML=`<div class="v29-viewer"><button id="v29ViewerClose">✕</button><div class="v29-viewer-media"><img src="${esc29(url)}" alt="صورة الملف الشخصي"></div><div class="v29-viewer-actions"><button id="v29Save">⬇️ حفظ الصورة</button><button id="v29Share">↗ مشاركة</button><button id="v29Report">⚠️ إبلاغ</button></div></div>`;v.classList.remove('hidden');q('v29ViewerClose').onclick=()=>v.classList.add('hidden');q('v29Save').onclick=()=>{const a=document.createElement('a');a.href=url;a.download='ComboApp-profile.jpg';a.target='_blank';a.click()};q('v29Share').onclick=async()=>{if(navigator.share)try{await navigator.share({title:u.display_name||'ComboApp',url})}catch(_){}else{try{await navigator.clipboard.writeText(url);toast29('تم نسخ الرابط')}catch(_){}}};q('v29Report').onclick=()=>showReport29(u);
+  }
+  async function showReport29(u){
+    if(!u)return;const reason=prompt('سبب الإبلاغ عن الشخص (اختياري):','إبلاغ عن المستخدم')||'بلاغ من المستخدم';const r=await sb.from('reports').insert({reporter_id:cur(),reported_user_id:u.id,reason});if(r.error)return toast29('تعذر إرسال البلاغ');toast29('تم إرسال البلاغ')
+  }
+  async function showContactMedia29(u){
+    const c=activeChat?.conversation;if(!c)return toast29('افتح المحادثة أولًا');
+    const r=await sb.from('messages').select('id,content,created_at,message_type,media_path,media_mime,sender_id').eq('conversation_id',c.id).order('created_at',{ascending:false}).limit(500);if(r.error)return toast29('تعذر تحميل الوسائط');
+    const rows=r.data||[],media=rows.filter(m=>m.media_path),links=rows.filter(m=>/(https?:\/\/[^\s]+)/i.test(m.content||''));
+    const body=media.length?media.map(m=>`<button class="v29-media-card" data-path="${esc29(m.media_path)}" data-mime="${esc29(m.media_mime||'')}">${m.media_mime?.startsWith('image/')?'🖼️':m.media_mime?.startsWith('video/')?'🎬':m.media_mime?.startsWith('audio/')?'🎵':'📎'} <small>${esc29(m.media_mime||'ملف')}</small></button>`).join(''):'<div class="muted">مفيش وسائط أو ملفات.</div>';
+    const linkBody=links.length?links.map(m=>{const x=(m.content.match(/https?:\/\/[^\s]+/i)||[])[0]||'';return `<a class="v29-link-row" href="${esc29(x)}" target="_blank" rel="noopener">🔗 ${esc29(x)}</a>`}).join(''):'<div class="muted">مفيش روابط.</div>';
+    const modal=document.createElement('div');modal.className='modal';modal.innerHTML=`<div class="v29-sheet"><button class="v29Back">← رجوع</button><h2>الوسائط والروابط والملفات</h2><div class="v29-tabs"><button data-tab="m">الوسائط والملفات</button><button data-tab="l">الروابط</button></div><div id="v29MediaBody">${body}</div></div>`;document.body.appendChild(modal);modal.querySelector('.v29Back').onclick=()=>modal.remove();modal.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{modal.querySelector('#v29MediaBody').innerHTML=b.dataset.tab==='l'?linkBody:body;bindMediaCards(modal)});bindMediaCards(modal);
+  }
+  function bindMediaCards(modal){modal.querySelectorAll('.v29-media-card').forEach(b=>b.onclick=async()=>{const r=await sb.storage.from('chat-media').createSignedUrl(b.dataset.path,3600);if(r.error)return toast29('تعذر فتح الملف');const u=r.data.signedUrl;const mime=b.dataset.mime;modal.querySelector('#v29MediaBody').innerHTML=mime.startsWith('image/')?`<img class="v29-preview" src="${esc29(u)}">`:mime.startsWith('video/')?`<video class="v29-preview" src="${esc29(u)}" controls autoplay></video>`:mime.startsWith('audio/')?`<audio src="${esc29(u)}" controls autoplay></audio>`:`<a class="primary" href="${esc29(u)}" target="_blank">📎 فتح الملف</a>`})}
+  async function showContactSearch29(u){
+    const c=activeChat?.conversation;if(!c)return toast29('افتح المحادثة أولًا');const r=await sb.from('messages').select('id,content,created_at').eq('conversation_id',c.id).order('created_at',{ascending:true}).limit(1000);if(r.error)return toast29('تعذر تحميل الرسائل');
+    const modal=document.createElement('div');modal.className='modal';modal.innerHTML=`<div class="v29-sheet"><button class="v29Back">← رجوع</button><h2>البحث في المحادثة</h2><input id="v29ChatFind" class="modal-search" placeholder="اكتب كلمة..." autofocus><div id="v29FindResults" class="v29-find"></div></div>`;document.body.appendChild(modal);modal.querySelector('.v29Back').onclick=()=>modal.remove();const inp=modal.querySelector('#v29ChatFind');const out=modal.querySelector('#v29FindResults');inp.oninput=()=>{const t=inp.value.trim().toLowerCase();const rows=t?r.data.filter(m=>String(m.content||'').toLowerCase().includes(t)):[];out.innerHTML=rows.length?rows.map(m=>`<button class="v29-find-row" data-id="${esc29(m.id)}"><span>${esc29(m.content||'رسالة')}</span><small>${esc29(window.fmt?.(m.created_at)||'')}</small></button>`).join(''):'<div class="muted">مفيش نتائج.</div>';out.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>{modal.remove();const el=q('messagesBox')?.querySelector(`[data-message-id="${CSS.escape(b.dataset.id)}"]`);el?.scrollIntoView({behavior:'smooth',block:'center'});el?.classList.add('v29-highlight');setTimeout(()=>el?.classList.remove('v29-highlight'),1800)})};
+  }
+  async function showContactPrivacy29(u){
+    let r=await sb.from('contact_privacy_settings').select('*').eq('owner_id',cur()).eq('contact_id',u.id).maybeSingle();if(r.error)return toast29('شغّل COMBOAPP_V28_FINAL_UPGRADE.sql مرة واحدة في Supabase');const s=r.data||{};
+    const modal=document.createElement('div');modal.className='modal';modal.innerHTML=`<div class="v29-sheet"><button class="v29Back">← رجوع</button><h2>الخصوصية والأمان</h2><p class="muted">تحكم في ما يستطيع هذا الشخص رؤيته أو فعله.</p><label><input id="v29cpProfile" type="checkbox" ${s.can_view_profile!==false?'checked':''}> يمكنه رؤية ملفي الشخصي</label><label><input id="v29cpPhoto" type="checkbox" ${s.can_view_photo!==false?'checked':''}> يمكنه رؤية صورتي</label><label><input id="v29cpAbout" type="checkbox" ${s.can_view_about!==false?'checked':''}> يمكنه رؤية النبذة والمعلومات</label><label><input id="v29cpMessage" type="checkbox" ${s.can_message!==false?'checked':''}> يمكنه مراسلتي</label><button id="v29cpSave" class="primary">حفظ</button><button id="v29cpReset" class="danger">↺ إعدادات ضبط المصنع</button></div>`;document.body.appendChild(modal);modal.querySelector('.v29Back').onclick=()=>modal.remove();modal.querySelector('#v29cpSave').onclick=async()=>{const x={owner_id:cur(),contact_id:u.id,can_view_profile:q('v29cpProfile').checked,can_view_photo:q('v29cpPhoto').checked,can_view_about:q('v29cpAbout').checked,can_message:q('v29cpMessage').checked,updated_at:new Date().toISOString()};const z=await sb.from('contact_privacy_settings').upsert(x,{onConflict:'owner_id,contact_id'});if(z.error)return toast29('تعذر حفظ الخصوصية: '+z.error.message);toast29('تم حفظ إعدادات الخصوصية');modal.remove()};modal.querySelector('#v29cpReset').onclick=async()=>{const z=await sb.from('contact_privacy_settings').delete().eq('owner_id',cur()).eq('contact_id',u.id);if(z.error)return toast29('تعذر إعادة الضبط');toast29('تمت إعادة الإعدادات');modal.remove()};
+  }
+
+  /* ---------- add a person to an owned group/channel from their profile ---------- */
+  async function chooseCommunityForUser29(u){
+    const r=await sb.from('communities').select('id,kind,name,owner_id').eq('owner_id',cur()).order('created_at',{ascending:false});
+    if(r.error||!r.data?.length)return toast29('اعمل جروب أو قناة الأول');
+    const modal=document.createElement('div');modal.className='modal';modal.innerHTML=`<div class="v29-sheet"><button class="v29Back">← رجوع</button><h2>إضافة ${esc29(u.display_name||u.username||'الشخص')} إلى</h2><div class="v29-community-pick">${r.data.map(c=>`<button data-cid="${esc29(c.id)}"><span>${c.kind==='channel'?'📢':'👥'} ${esc29(c.name)}</span><span>›</span></button>`).join('')}</div></div>`;document.body.appendChild(modal);modal.querySelector('.v29Back').onclick=()=>modal.remove();modal.querySelectorAll('[data-cid]').forEach(b=>b.onclick=async()=>{const z=await sb.rpc('combo_v28_add_member',{p_community_id:b.dataset.cid,p_user_id:u.id});if(z.error)return toast29('تعذر إضافة الشخص: '+z.error.message);toast29('تمت إضافة الشخص');modal.remove()});
+  }
+
+  /* ---------- community member picker: contacts + recent chats + all users ---------- */
+  async function memberPicker29(c){
+    if(c.owner_id!==cur())return toast29('إضافة الأعضاء متاحة لمالك الجروب أو القناة');
+    const [ct,cr]=await Promise.all([
+      sb.from('user_contacts').select('name,phone').eq('user_id',cur()).limit(1000),
+      sb.from('conversations').select('id,user1_id,user2_id,updated_at').or(`user1_id.eq.${cur()},user2_id.eq.${cur()}`).order('updated_at',{ascending:false}).limit(100)
+    ]);
+    const phones=(ct.data||[]).map(x=>normPhone(x.phone)).filter(Boolean);
+    const peerIds=(cr.data||[]).map(x=>x.user1_id===cur()?x.user2_id:x.user1_id).filter(Boolean);
+    const ids=[...new Set(peerIds)];
+    let users=[];
+    if(ids.length){const p=await sb.from('profiles').select('id,display_name,username,phone,avatar_url').in('id',ids);users.push(...(p.data||[]))}
+    if(phones.length){const p=await sb.from('profiles').select('id,display_name,username,phone,avatar_url').in('phone',phones);users.push(...(p.data||[]))}
+    const all=await sb.from('profiles').select('id,display_name,username,phone,avatar_url').neq('id',cur()).order('display_name').limit(300);users.push(...(all.data||[]));
+    users=[...new Map(users.map(x=>[x.id,x])).values()];
+    const contactSet=new Set(phones),recentSet=new Set(ids);
+    const modal=document.createElement('div');modal.className='modal';modal.innerHTML=`<div class="v29-sheet v29-member-sheet"><button class="v29Back">← رجوع</button><h2>إضافة أعضاء إلى ${esc29(c.name)}</h2><input id="v29MemberFind" class="modal-search" placeholder="ابحث بالاسم أو اليوزر..."><div class="v29-member-tabs"><button data-tab="contacts">جهات الاتصال</button><button data-tab="recent">آخر الدردشات</button><button data-tab="all">كل المستخدمين</button></div><div id="v29MemberList"></div></div>`;document.body.appendChild(modal);modal.querySelector('.v29Back').onclick=()=>modal.remove();
+    let tab='contacts';
+    const draw=()=>{const t=(modal.querySelector('#v29MemberFind').value||'').trim().toLowerCase();let arr=users.filter(u=>u.id!==cur());if(tab==='contacts')arr=arr.filter(u=>contactSet.has(normPhone(u.phone)));if(tab==='recent')arr=arr.filter(u=>recentSet.has(u.id));if(t)arr=arr.filter(u=>String(u.display_name||'').toLowerCase().includes(t)||String(u.username||'').toLowerCase().includes(t)||normPhone(u.phone).includes(normPhone(t)));modal.querySelector('#v29MemberList').innerHTML=arr.length?arr.map(u=>`<button class="v29-member-row" data-user="${esc29(u.id)}"><span class="avatar tiny">${u.avatar_url?`<img src="${esc29(u.avatar_url)}">`:esc29((window.initials?window.initials(u.display_name||u.username):'👤'))}</span><span><strong>${esc29(u.display_name||u.username||'مستخدم')}</strong><small>@${esc29(u.username||'')}</small></span><b>＋</b></button>`).join(''):'<div class="muted">مفيش أشخاص في القسم ده.</div>';modal.querySelectorAll('[data-user]').forEach(b=>b.onclick=async()=>{const z=await sb.rpc('combo_v28_add_member',{p_community_id:c.id,p_user_id:b.dataset.user});if(z.error)return toast29('تعذر إضافة العضو: '+z.error.message);b.remove();toast29('تمت إضافة العضو')})};
+    modal.querySelector('#v29MemberFind').oninput=draw;modal.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;modal.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));draw()});draw();
+  }
+
+  /* ---------- community chat/profile: WhatsApp-like ---------- */
+  const baseOpenCommunity=window.openCommunity;
+  async function openCommunity29(id){
+    const r=await sb.from('communities').select('*').eq('id',id).maybeSingle();const c=r.data;if(!c)return toast29('تعذر فتح الجروب أو القناة');
+    let modal=q('communityChatModal');if(!modal){modal=document.createElement('div');modal.id='communityChatModal';modal.className='modal hidden';document.body.appendChild(modal)}
+    modal.classList.remove('hidden');
+    modal.innerHTML=`<div class="community-modal v29-community-modal"><header class="community-head"><button id="v29CommClose" class="icon-btn">✕</button><button id="v29CommTitle" class="v29-comm-title"><span class="community-icon">${c.avatar_url?`<img src="${esc29(c.avatar_url)}">`:c.kind==='channel'?'📢':'👥'}</span><span><strong>${esc29(c.name)}</strong><small>${c.kind==='channel'?'قناة':'جروب'}</small></span></button></header><div id="communityMessages" class="community-messages"></div><div id="v29CommRich" class="v29-rich hidden"></div><div class="v29-compose"><button id="v29CommEmoji">😊</button><button id="v29CommGif">GIF</button><button id="v29CommAttach">＋</button><input id="communityMessageInput" placeholder="اكتب رسالة..."><button id="communitySend">➤</button></div></div>`;
+    q('v29CommClose').onclick=()=>modal.classList.add('hidden');q('v29CommTitle').onclick=()=>openCommunityProfile29(c);q('communitySend').onclick=()=>sendCommunityText29(c);q('communityMessageInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendCommunityText29(c)}};q('v29CommEmoji').onclick=()=>renderCommunityRich29(c,'emoji');q('v29CommGif').onclick=()=>renderCommunityRich29(c,'gif');q('v29CommAttach').onclick=()=>pickCommunityFile29(c);await loadCommunity29(c);
+  }
+  async function loadCommunity29(c){
+    const box=q('communityMessages');if(!box)return;const r=await sb.from('community_messages').select('*').eq('community_id',c.id).order('created_at');if(r.error){box.innerHTML='<div class="community-empty">تعذر تحميل الرسائل.</div>';return}
+    const ids=[...new Set((r.data||[]).map(x=>x.sender_id))];let names={};if(ids.length){const p=await sb.from('profiles').select('id,display_name,username').in('id',ids);(p.data||[]).forEach(x=>names[x.id]=x.display_name||x.username||'مستخدم')}
+    box.innerHTML=(r.data||[]).map(m=>{let body='';if(m.media_path){const u=sb.storage.from('community-media').getPublicUrl(m.media_path).data.publicUrl;body=m.media_mime?.startsWith('image/')?`<img class="v29-comm-media" src="${esc29(u)}">`:m.media_mime?.startsWith('video/')?`<video class="v29-comm-media" src="${esc29(u)}" controls playsinline></video>`:m.media_mime?.startsWith('audio/')?`<audio src="${esc29(u)}" controls></audio>`:`<a href="${esc29(u)}" target="_blank" rel="noopener">📎 ${esc29((m.media_path||'').split('/').pop())}</a>`}else if(/^__combo_gif__:\d+$/.test(m.content||'')){const i=Number(m.content.split(':')[1]);body=`<img class="v29-comm-media" src="${esc29((typeof GIFS!=='undefined'?GIFS[i]:''))}" alt="GIF">`}else body=`<div>${esc29(m.content||'')}</div>`;return `<div class="community-message ${m.sender_id===cur()?'mine':''}">${body}<small>${esc29(names[m.sender_id]||'مستخدم')} • ${esc29(window.fmt?.(m.created_at)||'')}</small></div>`}).join('')||'<div class="community-empty">ابدأ أول رسالة هنا.</div>';box.scrollTop=box.scrollHeight;
+  }
+  async function sendCommunityText29(c){const i=q('communityMessageInput'),text=(i?.value||'').trim();if(!text)return;const r=await sb.from('community_messages').insert({community_id:c.id,sender_id:cur(),content:text});if(r.error)return toast29('تعذر إرسال الرسالة: '+r.error.message);i.value='';await loadCommunity29(c)}
+  async function pickCommunityFile29(c){let i=q('v29CommunityFile');if(!i){i=document.createElement('input');i.id='v29CommunityFile';i.type='file';i.accept='*/*';i.multiple=true;i.hidden=true;document.body.appendChild(i);i.onchange=async e=>{for(const f of [...(e.target.files||[])])await sendCommunityFile29(c,f);i.value=''}}i.click()}
+  async function sendCommunityFile29(c,f){const path=`${cur()}/${c.id}/${crypto.randomUUID()}-${String(f.name||'file').replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from('community-media').upload(path,f,{upsert:false,contentType:f.type||'application/octet-stream'});if(up.error)return toast29('تعذر رفع الملف: '+up.error.message);const r=await sb.from('community_messages').insert({community_id:c.id,sender_id:cur(),content:'',media_path:path,media_mime:f.type||'application/octet-stream'});if(r.error)return toast29('تعذر إرسال الملف: '+r.error.message);await loadCommunity29(c)}
+  function renderCommunityRich29(c,tab){const p=q('v29CommRich');p.classList.remove('hidden');if(tab==='emoji'){p.innerHTML='<div class="v29-emoji-grid">'+('😀 😃 😂 🤣 😊 😍 🥰 😎 😢 😡 👍 👎 👏 🙏 ❤️ 🔥 🎉 ✨ 💚 🤝 💯 👋').split(' ').map(x=>`<button>${x}</button>`).join('')+'</div>';p.querySelectorAll('button').forEach(b=>b.onclick=()=>{q('communityMessageInput').value+=b.textContent;q('communityMessageInput').focus()})}else{const gs=typeof GIFS!=='undefined'?GIFS:[];p.innerHTML='<div class="v29-gif-grid">'+gs.map((s,i)=>`<button data-gif="${i}"><img src="${esc29(window.gifSrc27?.(i)||s)}"><small>GIF ${i+1}</small></button>`).join('')+'</div>';p.querySelectorAll('[data-gif]').forEach(b=>b.onclick=async()=>{const r=await sb.from('community_messages').insert({community_id:c.id,sender_id:cur(),content:`__combo_gif__:${b.dataset.gif}`});if(r.error)return toast29('تعذر إرسال GIF: '+r.error.message);p.classList.add('hidden');await loadCommunity29(c)})}}
+  async function openCommunityProfile29(c0){
+    const r=await sb.from('communities').select('*').eq('id',c0.id).maybeSingle();const c=r.data||c0;if(!c)return;let code=c.invite_code;if(!code&&c.owner_id===cur()){const z=await sb.rpc('combo_v28_ensure_invite',{p_community_id:c.id});if(!z.error){code=z.data;c.invite_code=code}}const link=code?APP_BASE_URL+'?community='+encodeURIComponent(code):'';
+    let modal=q('v29CommunityProfile');if(!modal){modal=document.createElement('div');modal.id='v29CommunityProfile';modal.className='modal hidden';document.body.appendChild(modal)}modal.classList.remove('hidden');
+    modal.innerHTML=`<div class="v29-profile-sheet"><button id="v29CpClose" class="icon-btn">✕</button><div class="v29-cp-avatar">${c.avatar_url?`<img src="${esc29(c.avatar_url)}">`:c.kind==='channel'?'📢':'👥'}</div><h2>${esc29(c.name)}</h2><p>${esc29(c.description||'لا توجد نبذة')}</p><div class="v29-link"><input readonly value="${esc29(link)}"><button id="v29CopyLink">نسخ</button><button id="v29ShareLink">مشاركة</button></div><div class="v29-cp-actions"><button id="v29AddMember">👤➕ إضافة عضو</button><button id="v29Gallery">🖼️ الوسائط</button><button id="v29Report">⚠️ إبلاغ</button>${c.owner_id===cur()?'<button id="v29Photo">🖼️ تغيير صورة المجموعة</button><button id="v29Settings">⚙️ إعدادات المجموعة</button><button id="v29Requests">📥 طلبات الانضمام</button><button id="v29Delete" class="danger">🗑️ حذف المجموعة/القناة</button>':'<button id="v29Leave">🚪 خروج من المجموعة</button>'}</div><div id="v29Members"></div></div>`;
+    q('v29CpClose').onclick=()=>modal.classList.add('hidden');q('v29CopyLink').onclick=async()=>{if(!link)return toast29('رابط الدعوة غير متاح');try{await navigator.clipboard.writeText(link);toast29('تم نسخ الرابط')}catch(_){prompt('رابط الدعوة:',link)}};q('v29ShareLink').onclick=()=>navigator.share?navigator.share({title:c.name,text:'انضم إلى '+c.name,url:link}):q('v29CopyLink').click();q('v29AddMember').onclick=()=>memberPicker29(c);q('v29Gallery').onclick=()=>communityGallery29(c);q('v29Report').onclick=()=>{const reason=prompt('سبب الإبلاغ:','إبلاغ عن المجموعة/القناة')||'إبلاغ';sb.from('community_reports').insert({community_id:c.id,reporter_id:cur(),reason}).then(x=>toast29(x.error?'تعذر إرسال البلاغ':'تم إرسال البلاغ'))};q('v29Photo')?.addEventListener('click',()=>changeCommunityPhoto29(c));q('v29Settings')?.addEventListener('click',()=>communitySettings29(c));q('v29Requests')?.addEventListener('click',()=>joinRequests29(c));q('v29Delete')?.addEventListener('click',async()=>{if(!confirm('حذف المجموعة/القناة نهائيًا؟'))return;const z=await sb.from('communities').delete().eq('id',c.id).eq('owner_id',cur());if(z.error)return toast29(z.error.message);modal.classList.add('hidden');q('communityChatModal')?.classList.add('hidden');window.loadCommunities?.();toast29('تم الحذف')});q('v29Leave')?.addEventListener('click',async()=>{const z=await sb.rpc('combo_v25_leave_community',{p_community_id:c.id});if(z.error)return toast29(z.error.message);modal.classList.add('hidden');q('communityChatModal')?.classList.add('hidden');window.loadCommunities?.();toast29('تم الخروج')});await renderMembers29(c);
+  }
+  async function changeCommunityPhoto29(c){let i=q('v29CommunityPhotoInput');if(!i){i=document.createElement('input');i.id='v29CommunityPhotoInput';i.type='file';i.accept='image/*,video/*';i.hidden=true;document.body.appendChild(i);i.onchange=async e=>{const f=e.target.files?.[0];i.value='';if(!f)return;const path=`${cur()}/${c.id}/avatar-${crypto.randomUUID()}-${String(f.name).replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from('community-media').upload(path,f,{upsert:false,contentType:f.type});if(up.error)return toast29('تعذر رفع صورة المجموعة');const pub=sb.storage.from('community-media').getPublicUrl(path).data.publicUrl;const z=await sb.from('communities').update({avatar_url:pub}).eq('id',c.id).eq('owner_id',cur());if(z.error)return toast29('تعذر حفظ صورة المجموعة');toast29('تم تغيير صورة المجموعة');openCommunityProfile29(c)}}i.click()}
+  async function renderMembers29(c){const box=q('v29Members');if(!box)return;const r=await sb.rpc('combo_v25_get_community_members',{p_community_id:c.id});if(r.error){box.innerHTML='<div class="muted">تعذر تحميل الأعضاء.</div>';return}box.innerHTML='<h3>الأعضاء</h3>'+(r.data||[]).map(m=>`<div class="v29-member"><span><strong>${esc29(m.display_name||m.username||'مستخدم')}</strong> ${m.role==='owner'?'👑':m.role==='admin'?'🛡️':''}</span>${c.owner_id===cur()&&m.user_id!==cur()?`<button data-prom="${m.user_id}">${m.role==='admin'?'تنزيل مشرف':'رفع مشرف'}</button><button data-kick="${m.user_id}">طرد</button>`:''}</div>`).join('');box.querySelectorAll('[data-prom]').forEach(b=>b.onclick=async()=>{const z=await sb.rpc('combo_v25_manage_member',{p_community_id:c.id,p_user_id:b.dataset.prom,p_action:b.textContent.includes('رفع')?'promote':'demote'});if(z.error)return toast29(z.error.message);renderMembers29(c)});box.querySelectorAll('[data-kick]').forEach(b=>b.onclick=async()=>{const z=await sb.rpc('combo_v25_manage_member',{p_community_id:c.id,p_user_id:b.dataset.kick,p_action:'kick'});if(z.error)return toast29(z.error.message);renderMembers29(c)})}
+  async function communityGallery29(c){const r=await sb.rpc('combo_v25_list_media',{p_community_id:c.id});const m=q('v29CommunityProfile');if(!m)return;m.innerHTML=`<div class="v29-profile-sheet"><button id="v29GalBack" class="icon-btn">←</button><h2>وسائط ${esc29(c.name)}</h2><div class="v29-gallery">${(r.data||[]).map(x=>{const u=sb.storage.from('community-media').getPublicUrl(x.media_path).data.publicUrl;return x.media_mime?.startsWith('video/')?`<video src="${esc29(u)}" controls></video>`:x.media_mime?.startsWith('image/')?`<img src="${esc29(u)}">`:`<a href="${esc29(u)}" target="_blank">📎 ملف</a>`}).join('')||'<p>مفيش وسائط.</p>'}</div><input id="v29GalInput" type="file" accept="image/*,video/*" multiple><button id="v29GalUpload" class="primary">إضافة صور وفيديو</button></div>`;q('v29GalBack').onclick=()=>openCommunityProfile29(c);q('v29GalUpload').onclick=async()=>{for(const f of [...(q('v29GalInput').files||[])]){const path=`${cur()}/${c.id}/gallery-${crypto.randomUUID()}-${String(f.name).replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from('community-media').upload(path,f,{upsert:false,contentType:f.type});if(up.error)continue;await sb.from('community_media').insert({community_id:c.id,user_id:cur(),media_path:path,media_mime:f.type})}openCommunityProfile29(c)}}
+  async function communitySettings29(c){const modal=q('v29CommunityProfile');modal.innerHTML=`<div class="v29-profile-sheet"><button id="v29SetBack" class="icon-btn">←</button><h2>إعدادات المجموعة</h2><label><input id="v29Info" type="checkbox" ${c.allow_info_edit!==false?'checked':''}> السماح للجميع بتغيير معلومات المجموعة</label><label><input id="v29AdminChat" type="checkbox" ${c.admins_only_chat===true?'checked':''}> المشرفون فقط يمكنهم الكتابة</label><label><input id="v29Join" type="checkbox" ${c.allow_join_requests===true?'checked':''}> السماح بالانضمام عن طريق الرابط وطلبات الانضمام</label><button id="v29SetSave" class="primary">حفظ</button></div>`;q('v29SetBack').onclick=()=>openCommunityProfile29(c);q('v29SetSave').onclick=async()=>{const z=await sb.rpc('combo_v25_set_community_settings',{p_community_id:c.id,p_allow_info_edit:q('v29Info').checked,p_admins_only_chat:q('v29AdminChat').checked,p_allow_join_requests:q('v29Join').checked});if(z.error)return toast29(z.error.message);toast29('تم حفظ الإعدادات');openCommunityProfile29(c)}}
+  async function joinRequests29(c){const r=await sb.rpc('combo_v25_list_join_requests',{p_community_id:c.id});const m=q('v29CommunityProfile');if(r.error)return toast29(r.error.message);m.innerHTML=`<div class="v29-profile-sheet"><button id="v29ReqBack" class="icon-btn">←</button><h2>طلبات الانضمام</h2>${(r.data||[]).map(x=>`<div class="v29-request"><span>${esc29(x.display_name||x.username||'مستخدم')}</span><button data-ok="${x.id}">✓</button><button data-no="${x.id}">✕</button></div>`).join('')||'<p>لا توجد طلبات.</p>'}</div>`;q('v29ReqBack').onclick=()=>openCommunityProfile29(c);m.querySelectorAll('[data-ok],[data-no]').forEach(b=>b.onclick=async()=>{const z=await sb.rpc('combo_v25_review_join_request',{p_request_id:b.dataset.ok||b.dataset.no,p_approve:!!b.dataset.ok});if(z.error)return toast29(z.error.message);joinRequests29(c)})}
+  window.openCommunity=openCommunity29;window.openCommunityProfileV25=openCommunityProfile29;
+
+  /* ---------- wallpapers: add all 10 newly uploaded images ---------- */
+  const newWalls=[
+    ['img11','ساموراي والزهور','assets/wallpapers_custom/wall_11.jpg'],['img12','ألوان مكسورة','assets/wallpapers_custom/wall_12.jpg'],['img13','ستايل كلاسيكي','assets/wallpapers_custom/wall_13.jpg'],['img14','Focus on yourself','assets/wallpapers_custom/wall_14.jpg'],['img15','عيون بالأسود','assets/wallpapers_custom/wall_15.jpg'],['img16','Spider-Man','assets/wallpapers_custom/wall_16.jpg'],['img17','غوريلا','assets/wallpapers_custom/wall_17.jpg'],['img18','خلفية طريفة','assets/wallpapers_custom/wall_18.jpg'],['img19','أنمي','assets/wallpapers_custom/wall_19.jpg'],['img20','ستايل أبيض وأسود','assets/wallpapers_custom/wall_20.jpg']
+  ];
+  const oldShowWallpaper=window.showWallpaper;const oldApplyWallpaper=window.applyChatWallpaper;
+  window.showWallpaper=function(){
+    const base=[['0','افتراضي'],['1','نقاط نيون'],['2','أخضر زجاجي'],['3','أزرق ليلي'],['4','أسود سادة'],['5','وردي ناعم'],['6','فوشيا'],['7','أحمر غامق'],['8','بنفسجي'],['9','ذهبي'],['10','سماوي'],['11','قلب ونقاط']];
+    const all=[...base,...newWalls];const colors={'0':'#07171e','1':'radial-gradient(#00e6b044 1px,transparent 1px)','2':'linear-gradient(135deg,#062a27,#03161b)','3':'linear-gradient(135deg,#071b38,#031016)','4':'#000','5':'linear-gradient(135deg,#4d1e3b,#17101c)','6':'linear-gradient(135deg,#8a195f,#291028)','7':'linear-gradient(135deg,#5d101d,#17070b)','8':'linear-gradient(135deg,#40205d,#100a19)','9':'linear-gradient(135deg,#624b16,#171108)','10':'linear-gradient(135deg,#0b4d64,#06131b)','11':'radial-gradient(#ff4d7d33 2px,transparent 2px),radial-gradient(#00e6b033 2px,transparent 2px)'};
+    const cards=all.map(w=>{const is=w[0].startsWith('img');return `<button class="v29-wall-card" data-wall="${w[0]}">${is?`<img src="${w[2]}" alt="${esc29(w[1])}">`:`<span style="background:${colors[w[0]]||'#10262c'}"></span>`}<b>${esc29(w[1])}</b></button>`}).join('');
+    if(typeof window.openSimple!=='function')return oldShowWallpaper?.();
+    window.openSimple('خلفيات الدردشة',`<div class="v29-wall-grid">${cards}</div><button id="v29WallGallery" class="choice-btn">🖼️ اختيار صورة من المعرض</button><input id="v29WallInput" type="file" accept="image/*" hidden>`,'إغلاق');
+    setTimeout(()=>{document.querySelectorAll('[data-wall]').forEach(b=>b.onclick=()=>{localStorage.setItem('combo_wallpaper',b.dataset.wall);localStorage.removeItem('combo_custom_wallpaper');applyWall29();window.closeSimple?.();toast29('تم اختيار الخلفية')});q('v29WallGallery').onclick=()=>q('v29WallInput').click();q('v29WallInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)});localStorage.setItem('combo_custom_wallpaper',data);localStorage.setItem('combo_wallpaper','custom');applyWall29();window.closeSimple?.();toast29('تم وضع الصورة كخلفية')};},30);
+  };
+  function applyWall29(){const box=q('messagesBox');if(!box)return;const v=localStorage.getItem('combo_wallpaper')||'0';box.className='messages';box.style.backgroundImage='';box.style.backgroundSize='cover';box.style.backgroundPosition='center';box.style.backgroundRepeat='no-repeat';if(v==='custom'&&localStorage.getItem('combo_custom_wallpaper'))box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${localStorage.getItem('combo_custom_wallpaper')}")`;else if(/^img1[1-9]$|^img20$/.test(v))box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("assets/wallpapers_custom/wall_${v.slice(3)}.jpg")`;else if(oldApplyWallpaper&&v.startsWith('img')===false)oldApplyWallpaper();}
+  window.applyChatWallpaper=applyWall29;
+
+  /* ---------- factory reset button for privacy/settings/chat pages ---------- */
+  function addFactory(scopeSelector,scope){const root=document.querySelector(scopeSelector);if(!root||root.querySelector('.v29-factory'))return;const b=document.createElement('button');b.className='v29-factory danger';b.textContent='↺ إعادة الإعدادات إلى ضبط المصنع';b.onclick=()=>{if(!confirm('إعادة إعدادات هذا القسم إلى ضبط المصنع؟'))return;Object.keys(localStorage).filter(k=>k.startsWith('combo_')&&(scope==='all'||k.toLowerCase().includes(scope))).forEach(k=>localStorage.removeItem(k));applyWall29();toast29('تمت إعادة الإعدادات')};root.appendChild(b)}
+
+  // Wrap simple settings so factory reset is always available.
+  const oldSimple=window.openSimple;if(oldSimple&&!window.__v29Simple){window.__v29Simple=true;window.openSimple=function(title,html,closeText){oldSimple(title,html,closeText);setTimeout(()=>{const root=document.querySelector('.simple-modal:not(.hidden),.modal:not(.hidden) .simple-body,.modal:not(.hidden) .modal-content');if(root&&!root.querySelector('.v29-factory')){const b=document.createElement('button');b.className='v29-factory danger';b.textContent='↺ إعادة الإعدادات إلى ضبط المصنع';b.onclick=()=>{if(confirm('إعادة إعدادات هذا القسم إلى ضبط المصنع؟')){['combo_wallpaper','combo_bubbles','combo_ticks','combo_theme','combo_sound'].forEach(k=>localStorage.removeItem(k));applyWall29();toast29('تمت إعادة الإعدادات إلى ضبط المصنع')}};root.appendChild(b)}},80)}}
+
+  /* Refresh communities and chat names after all patches. */
+  const ref=q('refreshBtn');if(ref)ref.onclick=async()=>{try{await window.loadChats?.();await window.loadCommunities?.();toast29('تم التحديث')}catch(e){toast29('تعذر التحديث')}};
+  window.__v29Loaded=true;updateBell();setTimeout(updateBell,300);
+})();
+
+/* ===== ComboApp V29B — direct Supabase bindings for messages/communities ===== */
+(function V29B(){
+  const q=id=>document.getElementById(id), cur=()=>me?.id||null;
+  const toastB=m=>toast(m);
+  const escB=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  // Normal chat messages: GIFs, delete-for-me, delete-for-everyone, edit, report.
+  window.loadMessages=async function(){
+    if(!activeChat)return;
+    const box=q('messagesBox');if(!box)return;
+    const r=await sb.from('messages').select('*').eq('conversation_id',activeChat.conversation.id).order('created_at');
+    if(r.error){box.innerHTML='<div class="muted">تعذر تحميل الرسائل</div>';return}
+    const all=r.data||[], ids=all.map(m=>m.id);let hidden=new Set();
+    if(ids.length){const d=await sb.from('message_user_deletions').select('message_id').eq('user_id',cur()).in('message_id',ids);if(!d.error)(d.data||[]).forEach(x=>hidden.add(x.message_id))}
+    const rows=all.filter(m=>!hidden.has(m.id));
+    box.innerHTML=rows.map(m=>{
+      const c=m.content||'';let body='';
+      if(m.deleted_for_everyone)body='<div class="message-text deleted-msg">🚫 تم حذف هذه الرسالة</div>';
+      else if(m.media_path)body=typeof messageMediaMarkup==='function'?messageMediaMarkup(m):`<a href="#">📎 ملف</a>`;
+      else if(/^__combo_gif__:\d+$/.test(c)){const i=Number(c.split(':')[1]);body=`<div class="sent-gif"><img src="${escB((typeof GIFS!=='undefined'?GIFS[i]:'')||'')}" alt="GIF" loading="eager"></div>`}
+      else if(c.startsWith('__combo_sticker_data__:'))body=`<div class="sent-gif"><img src="${escB(c.split(':').slice(1).join(':'))}" alt="ملصق"></div>`;
+      else if(c.startsWith('__combo_sticker__:'))body='<div class="sent-sticker">✨</div>';
+      else body=`<div class="message-text">${escB(c)}</div>`;
+      const mine=m.sender_id===cur();const ticks=mine?(m.read_at?'<span class="ticks read">✓✓</span>':m.delivered_at?'<span class="ticks">✓✓</span>':'<span class="ticks">✓</span>'):'';
+      return `<div class="bubble ${mine?'mine':'theirs'}" data-message-id="${escB(m.id)}">${body}<small>${fmt(m.created_at)} ${m.edited_at&&!m.deleted_for_everyone?'· تم التعديل':''} ${ticks}</small></div>`;
+    }).join('')||'<div class="empty-card">ابدأ المحادثة 👋</div>';
+    box.scrollTop=box.scrollHeight;if(typeof hydrateMessageMedia==='function')await hydrateMessageMedia();
+    box.querySelectorAll('.bubble[data-message-id]').forEach(el=>{let timer;const open=()=>{const m=rows.find(x=>String(x.id)===String(el.dataset.messageId));if(m)messageActionsB(m)};el.onclick=e=>{if(!e.target.closest('img,video,audio,a'))open()};el.oncontextmenu=e=>{e.preventDefault();open()};el.ontouchstart=()=>{timer=setTimeout(open,520)};el.ontouchend=()=>clearTimeout(timer);el.ontouchmove=()=>clearTimeout(timer)});
+  };
+  async function messageActionsB(m){
+    const mine=m.sender_id===cur();let modal=q('v29MsgActions');if(!modal){modal=document.createElement('div');modal.id='v29MsgActions';modal.className='modal';document.body.appendChild(modal)}
+    modal.classList.remove('hidden');modal.innerHTML=`<div class="v29-sheet"><h3>إجراءات الرسالة</h3>${mine&&!m.deleted_for_everyone&&!m.media_path&&!/^__combo_/.test(m.content||'')?'<button id="bEdit">✏️ تعديل الرسالة</button>':''}${mine&&!m.deleted_for_everyone?'<button id="bDelAll" class="danger">🗑️ حذف للجميع</button>':''}<button id="bDelMe">🗑️ حذف لدي فقط</button>${!mine&&!m.deleted_for_everyone?'<button id="bReport" class="danger">⚠️ إبلاغ عن الرسالة</button>':''}<button id="bCancel">إلغاء</button></div>`;
+    q('bCancel').onclick=()=>modal.classList.add('hidden');
+    q('bDelMe').onclick=async()=>{const r=await sb.from('message_user_deletions').upsert({message_id:m.id,user_id:cur()},{onConflict:'message_id,user_id'});if(r.error)return toastB('تعذر حذف الرسالة لديك');modal.classList.add('hidden');await window.loadMessages();await loadChats();toastB('تم حذف الرسالة لديك فقط')};
+    q('bDelAll')?.addEventListener('click',async()=>{const r=await sb.rpc('combo_v28_delete_message_everyone',{p_message_id:m.id});if(r.error)return toastB(r.error.message);modal.classList.add('hidden');await window.loadMessages();await loadChats();toastB('تم حذف الرسالة للجميع')});
+    q('bEdit')?.addEventListener('click',async()=>{const next=prompt('تعديل الرسالة:',m.content||'');if(next===null)return;const val=next.trim();if(!val)return toastB('الرسالة لا يمكن أن تكون فارغة');const r=await sb.from('messages').update({content:val,edited_at:new Date().toISOString()}).eq('id',m.id).eq('sender_id',cur());if(r.error)return toastB('تعذر تعديل الرسالة: '+r.error.message);modal.classList.add('hidden');await window.loadMessages();await loadChats();toastB('تم تعديل الرسالة')});
+    q('bReport')?.addEventListener('click',async()=>{const reason=prompt('سبب الإبلاغ عن الرسالة (اختياري):','إبلاغ عن رسالة غير مناسبة')||'إبلاغ عن الرسالة';const r=await sb.from('reports').insert({reporter_id:cur(),reported_user_id:m.sender_id,reason:`${reason} | message_id=${m.id} | content=${String(m.content||'').slice(0,300)}`});if(r.error)return toastB('تعذر إرسال البلاغ');modal.classList.add('hidden');toastB('تم إرسال البلاغ')});
+  }
+
+  // Ensure every newly created community gets its own unique invite code immediately.
+  async function ensureOwnedInvites(){
+    if(!cur())return;const r=await sb.from('communities').select('id,owner_id,invite_code').eq('owner_id',cur()).limit(100);if(r.error)return;(r.data||[]).filter(c=>!c.invite_code).forEach(async c=>{try{await sb.rpc('combo_v28_ensure_invite',{p_community_id:c.id})}catch(_){}})
+  }
+  const oldCreate=window.createCommunityV16;
+  if(oldCreate&&!window.__v29CreateWrapped){window.__v29CreateWrapped=true;window.createCommunityV16=async function(){const result=await oldCreate();await ensureOwnedInvites();await window.loadCommunities?.();return result}}
+  setTimeout(ensureOwnedInvites,1200);
+
+  // Make the new wallpaper set immediately available when entering a chat.
+  setTimeout(()=>{try{window.applyChatWallpaper?.()}catch(_){ }},500);
+})();
+
+/* ===== ComboApp V29 visual styles ===== */
+(function V29CSS(){
+  const s=document.createElement('style');s.id='v29Css';s.textContent=`
+    #notifyBtn.bell-off{filter:grayscale(1);opacity:.75;background:#260f14!important;border:1px solid #9b2738!important;color:#ff5d70!important}
+    #notifyBtn:not(.bell-off){background:#073a32!important;border:1px solid #00d6aa!important;color:#dffff6!important}
+    .v29-community-modal{display:flex;flex-direction:column;height:min(92vh,760px);background:#06151b;border-radius:20px;overflow:hidden}
+    .v29-comm-title{border:0;background:none;color:#fff;display:flex;gap:10px;align-items:center;text-align:right;cursor:pointer;flex:1}
+    .v29-comm-title small{display:block;opacity:.65}.v29-comm-title .community-icon{width:45px;height:45px;display:flex;align-items:center;justify-content:center}.v29-comm-title .community-icon img{width:100%;height:100%;object-fit:cover;border-radius:13px}
+    .v29-compose{display:flex;gap:6px;align-items:center;padding:9px;background:#071d24;border-top:1px solid #16434a}.v29-compose button{border:0;background:#0d2c34;color:#eafffa;border-radius:13px;min-width:42px;height:42px}.v29-compose input{flex:1;min-width:0;border:1px solid #164a52;background:#06151b;color:#fff;border-radius:16px;padding:11px 13px;outline:0}.v29-compose button:last-child{background:#00cfa8;color:#032019;font-size:20px}
+    .v29-rich{max-height:250px;overflow:auto;background:#071a21;border-top:1px solid #17454d;padding:8px}.v29-rich.hidden{display:none}.v29-emoji-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.v29-emoji-grid button,.v29-gif-grid button{border:0;background:#0c2931;color:#fff;border-radius:10px;padding:8px;font-size:21px}.v29-gif-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.v29-gif-grid img{width:100%;height:82px;object-fit:cover;border-radius:8px}.v29-gif-grid small{display:block;font-size:9px;opacity:.7}
+    .v29-cp-avatar{width:120px;height:120px;border-radius:50%;overflow:hidden;background:#10313a;margin:5px auto 12px;display:flex;align-items:center;justify-content:center;font-size:48px}.v29-cp-avatar img{width:100%;height:100%;object-fit:cover}.v29-profile-sheet,.v29-sheet{background:#07171e;color:#eafffa;width:min(94vw,560px);max-height:90vh;overflow:auto;padding:18px;border-radius:22px;margin:auto}.v29-profile-sheet label,.v29-sheet label{display:flex;gap:10px;align-items:center;padding:13px;margin:8px 0;background:#0c242b;border-radius:12px}.v29-link{display:flex;gap:6px;margin:10px 0}.v29-link input{flex:1;min-width:0}.v29-cp-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.v29-cp-actions button,.v29-community-pick button{border:1px solid #16464e;background:#09242c;color:#eafffa;border-radius:13px;padding:12px}.v29-cp-actions .danger{background:#4b1820}.v29-member{display:flex;gap:7px;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #17363d}.v29-member button{border:1px solid #22535b;background:#0d2a32;color:#fff;border-radius:9px;padding:6px 8px}.v29-request{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid #17363d}.v29-request button{width:40px;height:40px;border:0;border-radius:10px;background:#0d2c34;color:#fff}.v29-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.v29-gallery img,.v29-gallery video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}.v29-community-pick{display:grid;gap:8px}.v29-community-pick button{display:flex;justify-content:space-between}.v29-member-sheet{max-width:620px}.v29-member-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:9px 0}.v29-member-tabs button{border:1px solid #17464e;background:#09232b;color:#dff;color:#dff;border-radius:10px;padding:9px}.v29-member-tabs button.active{background:#00b995;color:#032019}.v29-member-row{width:100%;display:flex;align-items:center;gap:10px;border:0;border-bottom:1px solid #17363d;background:transparent;color:#fff;padding:10px;text-align:right}.v29-member-row .avatar{flex:0 0 42px}.v29-member-row .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.v29-member-row span:nth-child(2){display:flex;flex-direction:column;flex:1}.v29-member-row small{opacity:.65}.v29-member-row>b{font-size:24px;color:#00dfb0}.v29-media-card{width:100%;border:1px solid #19464e;background:#09252d;color:#fff;border-radius:11px;padding:12px;text-align:right;margin:4px 0}.v29-link-row{display:block;border-bottom:1px solid #17363d;padding:12px;color:#6ff1ce;word-break:break-all}.v29-preview{max-width:100%;max-height:65vh;display:block;margin:auto;border-radius:12px}.v29-find{margin-top:10px}.v29-find-row{display:flex;width:100%;justify-content:space-between;gap:10px;border:0;border-bottom:1px solid #17363d;background:transparent;color:#fff;padding:12px;text-align:right}.v29-highlight{animation:v29hl 1.8s ease}@keyframes v29hl{0%,100%{box-shadow:none}30%,70%{box-shadow:0 0 0 4px #00e6b066}}
+    .v29-viewer{width:100vw;height:100vh;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center}.v29-viewer>button{position:absolute;top:16px;right:16px;z-index:2;background:#111c;color:#fff;border:0;border-radius:50%;width:44px;height:44px}.v29-viewer-media{flex:1;width:100%;display:flex;align-items:center;justify-content:center;padding:60px 10px 10px}.v29-viewer-media img{max-width:100%;max-height:100%;object-fit:contain}.v29-viewer-actions{display:flex;gap:7px;padding:12px;width:100%;background:#090909}.v29-viewer-actions button{flex:1;border:1px solid #333;background:#171717;color:#fff;border-radius:12px;padding:11px}
+    .v29-wall-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;max-height:65vh;overflow:auto}.v29-wall-card{border:1px solid #16464e;background:#09242c;color:#fff;border-radius:13px;overflow:hidden;padding:0;min-height:150px;display:flex;flex-direction:column}.v29-wall-card img,.v29-wall-card span{display:block;width:100%;height:115px;object-fit:cover}.v29-wall-card b{padding:9px;font-size:12px}.v29-factory{width:100%;margin-top:14px;border:1px solid #7c2935;background:#3a141b;color:#ffb2bc;border-radius:12px;padding:12px}
+    .deleted-msg{opacity:.65;font-style:italic}.v29-comm-media{max-width:240px;max-height:280px;border-radius:12px;display:block}.v29-comm-media+a{display:block;padding:8px}.sent-gif img{max-width:240px;max-height:240px;border-radius:12px}
+    @media(max-width:480px){.v29-cp-actions{grid-template-columns:1fr 1fr}.v29-gif-grid{grid-template-columns:repeat(2,1fr)}.v29-emoji-grid{grid-template-columns:repeat(6,1fr)}}
+  `;document.head.appendChild(s);
+})();
