@@ -1710,3 +1710,227 @@ init();
   window.loadCommunities=loadCommunities;
   window.openCommunity=openCommunity;
 })();
+
+/* ===== ComboApp V25: final community UX + contact profile tools ===== */
+(function V25(){
+  const q=id=>document.getElementById(id), safe=s=>esc(s||'');
+  let communityCache=[];
+  const currentUser=()=>me?.id||null;
+  const commUrl=c=>c?.invite_code?APP_BASE_URL+'?community='+encodeURIComponent(c.invite_code):'';
+  const mediaUrl=path=>sb.storage.from('community-media').getPublicUrl(path).data?.publicUrl||'';
+
+  function ensureV25CommunityStyles(){
+    if(q('v25CommunityStyle'))return;
+    const st=document.createElement('style');st.id='v25CommunityStyle';st.textContent=`
+      .v25-community-profile{width:min(700px,100%);height:100%;background:#031016;overflow:auto;padding-bottom:24px}
+      .v25-community-cover{height:150px;background:radial-gradient(circle at 50% 0,#00e6b044,#06151b 68%);display:flex;align-items:center;justify-content:center;position:relative}
+      .v25-community-avatar{width:104px;height:104px;border-radius:30px;border:3px solid #00e6b0;overflow:hidden;background:#0a2931;display:grid;place-items:center;font-size:44px;box-shadow:0 15px 45px #0009}
+      .v25-community-avatar img,.v25-community-avatar video{width:100%;height:100%;object-fit:cover}
+      .v25-community-body{padding:14px}.v25-community-body h2{margin:0 0 4px}.v25-community-desc{color:#91ada9;white-space:pre-wrap;margin:0 0 12px}
+      .v25-community-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.v25-community-actions button,.v25-community-row{border:1px solid #16464e;background:#071d24;color:#eafffa;border-radius:15px;padding:11px;text-align:center}
+      .v25-community-link{display:flex;gap:8px;align-items:center;direction:ltr;background:#061b22!important;text-align:left!important}.v25-community-link span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+      .v25-section{margin-top:14px;border-top:1px solid #143b42;padding-top:12px}.v25-section h3{font-size:14px;margin:0 0 8px}.v25-member{display:grid;grid-template-columns:42px 1fr auto;gap:9px;align-items:center;border:1px solid #123b43;background:#061820;border-radius:14px;padding:8px;margin:6px 0;text-align:right}.v25-member .avatar{width:42px;height:42px}.v25-member-main small{display:block;color:#789b96;margin-top:2px}.v25-member-actions{display:flex;gap:5px}.v25-member-actions button{border:1px solid #24515a;background:#0b2730;color:#eafffa;border-radius:9px;padding:6px;font-size:11px}.v25-member-actions .danger{color:#ff8191}
+      .v25-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;border:1px solid #16464e;background:#071d24;color:#eafffa;border-radius:14px;padding:12px;margin:7px 0;text-align:right}.v25-toggle b{min-width:44px;padding:6px 9px;border-radius:18px;background:#102e35;color:#789b96}.v25-toggle.on b{background:#00e6b0;color:#00231d}.v25-request{display:grid;grid-template-columns:42px 1fr auto;gap:9px;align-items:center;border:1px solid #17464e;background:#071d24;border-radius:14px;padding:9px;margin:7px 0}.v25-request-actions{display:flex;gap:5px}.v25-request-actions button{width:36px;height:36px;border:0;border-radius:11px;font-size:18px}.v25-request-actions .yes{background:#00e6b0}.v25-request-actions .no{background:#3b1720;color:#ff8a98}
+      .v25-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.v25-gallery button{aspect-ratio:1;border:1px solid #16464e;border-radius:13px;overflow:hidden;background:#071b22;padding:0;position:relative}.v25-gallery img,.v25-gallery video{width:100%;height:100%;object-fit:cover}.v25-gallery small{position:absolute;bottom:5px;right:5px;background:#00151bd9;color:#fff;border-radius:7px;padding:2px 5px}
+      .v25-community-compose{display:grid;grid-template-columns:auto auto auto 1fr auto;gap:6px;padding:8px;border-top:1px solid #14363c;background:#04141a}.v25-community-compose button{border:1px solid #16464e;background:#09242c;color:#eafffa;border-radius:12px;min-width:40px}.v25-community-compose input{min-width:0}.v25-community-rich{position:absolute;bottom:62px;right:8px;left:8px;z-index:20;background:#061a22;border:1px solid #17464e;border-radius:18px;padding:8px;max-height:250px;overflow:auto;box-shadow:0 15px 50px #000b}.v25-community-rich.hidden{display:none}.v25-community-rich-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.v25-community-rich-grid button{border:0;background:transparent;color:#fff;font-size:23px;padding:6px}.v25-community-gifs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.v25-community-gifs button{border:1px solid #16464e;background:#071b22;border-radius:10px;overflow:hidden}.v25-community-gifs img{width:100%;display:block}
+      .v25-profile-viewer{position:fixed;inset:0;z-index:1600;background:#000f;display:flex;align-items:center;justify-content:center}.v25-profile-viewer.hidden{display:none}.v25-profile-viewer-box{width:min(700px,100%);height:100%;display:flex;flex-direction:column;padding:10px}.v25-profile-viewer-media{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}.v25-profile-viewer-media img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px}.v25-profile-viewer-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:9px 0}.v25-profile-viewer-actions button{border:1px solid #16464e;background:#09212a;color:#fff;border-radius:13px;padding:11px;font-weight:800}
+    `;document.head.appendChild(st);
+  }
+
+  function getCommunityFresh(id){
+    return sb.from('communities').select('id,kind,name,description,owner_id,avatar_url,invite_code,created_at,allow_info_edit,admins_only_chat,allow_join_requests').eq('id',id).maybeSingle();
+  }
+  async function getCommunityV25(id){
+    const c=typeof communityById==='function'?communityById(id):null;if(c?.id)return c;
+    const r=await getCommunityFresh(id);return r.data||null;
+  }
+
+  async function loadCommunitiesV25(){
+    ensureV25CommunityStyles();
+    const list=q('communityList');if(!list||!currentUser())return;
+    const r=await sb.from('communities').select('id,kind,name,description,owner_id,avatar_url,invite_code,created_at,allow_info_edit,admins_only_chat,allow_join_requests').order('updated_at',{ascending:false});
+    if(r.error){list.innerHTML='<div class="community-empty">تعذر تحميل الجروبات والقنوات.</div>';return;}
+    communityCache=r.data||[];
+    list.innerHTML=communityCache.length?communityCache.map(c=>`<div class="community-card" data-community="${safe(c.id)}"><div class="community-icon">${c.avatar_url?`<img src="${safe(c.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`:c.kind==='channel'?'📢':'👥'}</div><div class="community-main"><strong>${safe(c.name)}</strong><small>${c.kind==='channel'?'قناة':'جروب'}${c.description?' • '+safe(c.description):''}</small></div></div>`).join(''):'<div class="community-empty">لسه مفيش جروبات أو قنوات.</div>';
+    list.querySelectorAll('[data-community]').forEach(el=>el.onclick=()=>openCommunityV25(el.dataset.community));
+  }
+
+  async function communityMediaGallery(c){
+    const r=await sb.rpc('combo_v25_list_media',{p_community_id:c.id});
+    if(r.error||!r.data?.length)return '<div class="empty-card">مفيش صور أو فيديوهات لسه.</div>';
+    return `<div class="v25-gallery">${r.data.map(x=>{const u=mediaUrl(x.media_path);return `<button type="button" data-v25-media-url="${safe(u)}" data-v25-media-mime="${safe(x.media_mime||'')}">${x.media_mime?.startsWith('video/')?`<video src="${safe(u)}" muted></video>`:`<img src="${safe(u)}" alt="">`}<small>${x.media_mime?.startsWith('video/')?'فيديو':'صورة'}</small></button>`}).join('')}</div>`;
+  }
+
+  async function uploadCommunityProfileMedia(c,file,setMain=false){
+    if(c.owner_id!==currentUser())return toast('التعديل متاح لمالك الجروب أو القناة فقط');
+    if(!file)return;
+    if(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))return toast('اختار صورة أو فيديو');
+    const path=`${me.id}/${c.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const up=await sb.storage.from('community-media').upload(path,file,{upsert:false,contentType:file.type});
+    if(up.error)return toast('تعذر رفع الملف: '+up.error.message);
+    const add=await sb.rpc('combo_v25_add_media',{p_community_id:c.id,p_media_path:path,p_media_mime:file.type});
+    if(add.error){await sb.storage.from('community-media').remove([path]);return toast('تعذر حفظ الملف');}
+    if(setMain&&file.type.startsWith('image/')){
+      const url=mediaUrl(path);const u=await sb.from('communities').update({avatar_url:url}).eq('id',c.id).eq('owner_id',me.id);
+      if(u.error)return toast('تم رفع الصورة لكن تعذر جعلها صورة المجموعة');
+    }
+    toast(setMain?'تم تغيير صورة المجموعة':'تمت إضافة الوسائط');
+  }
+
+  async function openCommunityProfileV25(c){
+    ensureV25CommunityStyles();
+    let modal=q('communityProfileV25');if(!modal){modal=document.createElement('div');modal.id='communityProfileV25';modal.className='modal hidden';document.body.appendChild(modal)}
+    const owner=c.owner_id===currentUser();
+    const members=await sb.rpc('combo_v25_get_community_members',{p_community_id:c.id});
+    const rows=members.data||[];
+    const link=commUrl(c);
+    modal.innerHTML=`<div class="v25-community-profile"><header class="sheet-head"><div><h3>معلومات ${c.kind==='channel'?'القناة':'المجموعة'}</h3><small class="muted">${safe(c.kind==='channel'?'قناة':'جروب')}</small></div><button id="v25CommProfileClose" class="icon-btn">✕</button></header><div class="v25-community-cover"><div class="v25-community-avatar">${c.avatar_url?`<img src="${safe(c.avatar_url)}">`:c.kind==='channel'?'📢':'👥'}</div></div><div class="v25-community-body"><h2>${safe(c.name)}</h2><p class="v25-community-desc">${safe(c.description||'مفيش نبذة')}</p><div class="v25-community-actions"><button id="v25AddCommMember">👤＋<br>إضافة عضو</button><button id="v25CommMediaAdd">🖼️＋<br>إضافة وسائط</button><button id="v25CommReport">⚠️<br>إبلاغ</button></div>${(!owner&&c.allow_info_edit)?'<button class="v25-community-row" id="v25EditCommInfo">✏️ تعديل معلومات المجموعة</button>':''}<button class="v25-community-row v25-community-link" id="v25CommLinkBtn"><span>🔗 ${safe(link||'الرابط غير جاهز')}</span><b>نسخ</b></button><div class="v25-section"><h3>الوسائط والصور</h3><div id="v25CommGallery">جاري التحميل...</div></div><div class="v25-section"><h3>الأعضاء (${rows.length})</h3><div id="v25CommMembers"></div></div>${owner?`<div class="v25-section"><h3>إدارة المجموعة</h3><button class="v25-community-row" id="v25CommSettingsBtn">⚙️ إعدادات المجموعة</button><button class="v25-community-row" id="v25JoinRequestsBtn">👥 طلبات الانضمام <span id="v25ReqCount"></span></button></div>`:''}<div class="v25-section"><button class="v25-community-row ${owner?'danger-text':''}" id="v25LeaveCommBtn">${owner?'🗑️ حذف المجموعة نهائيًا':'🚪 الخروج من المجموعة'}</button></div></div></div>`;
+    modal.classList.remove('hidden');
+    q('v25CommProfileClose').onclick=()=>modal.classList.add('hidden');
+    q('v25CommLinkBtn').onclick=async()=>{if(!link)return toast('رابط الدعوة غير جاهز');try{await navigator.clipboard.writeText(link);toast('تم نسخ رابط الدعوة')}catch(_){toast(link)}};
+    q('v25AddCommMember').onclick=()=>chooseCommunityMemberV25(c);
+    q('v25CommMediaAdd').onclick=()=>{if(!owner)return toast('إضافة الوسائط متاحة للمالك فقط');let inp=q('v25CommMediaInput');if(!inp){inp=document.createElement('input');inp.id='v25CommMediaInput';inp.type='file';inp.accept='image/*,video/*';inp.multiple=true;inp.hidden=true;document.body.appendChild(inp);inp.onchange=async e=>{for(const f of [...(e.target.files||[])])await uploadCommunityProfileMedia(c,f,false);inp.value='';await openCommunityProfileV25(c)}}inp.click()};
+    q('v25CommReport').onclick=()=>reportCommunityV25(c);if(q('v25EditCommInfo'))q('v25EditCommInfo').onclick=()=>editCommunityInfoV25(c);
+    q('v25LeaveCommBtn').onclick=async()=>{if(!confirm(owner?'حذف المجموعة نهائيًا؟':'الخروج من المجموعة؟'))return;const r=await sb.rpc('combo_v25_leave_community',{p_community_id:c.id});if(r.error)return toast('تعذر تنفيذ العملية: '+r.error.message);modal.classList.add('hidden');await loadCommunitiesV25();toast(owner?'تم حذف المجموعة':'تم الخروج من المجموعة')};
+    const gallery=q('v25CommGallery');if(gallery){gallery.innerHTML=await communityMediaGallery(c);gallery.querySelectorAll('[data-v25-media-url]').forEach(b=>b.onclick=()=>openV25ImageViewer(b.dataset.v25MediaUrl,b.dataset.v25MediaMime,c))}
+    const memBox=q('v25CommMembers');if(memBox){memBox.innerHTML=rows.map(u=>{const mine=u.user_id===currentUser(),canManage=owner&&!mine&&u.role!=='owner';return `<div class="v25-member"><div class="avatar">${u.avatar_url?`<img src="${safe(u.avatar_url)}">`:initials(u.display_name)}</div><div class="v25-member-main"><strong>${safe(u.display_name||u.username||'مستخدم')}</strong><small>@${safe(u.username||'')} · ${u.role==='owner'?'مالك':u.role==='admin'?'مشرف':'عضو'}</small></div>${canManage?`<div class="v25-member-actions"><button data-mem-action="${u.role==='admin'?'demote':'promote'}" data-mem-id="${safe(u.user_id)}">${u.role==='admin'?'تنزيل':'رفع مشرف'}</button><button class="danger" data-mem-action="kick" data-mem-id="${safe(u.user_id)}">طرد</button></div>`:''}</div>`}).join('')||'<div class="community-empty">مفيش أعضاء.</div>';memBox.querySelectorAll('[data-mem-action]').forEach(b=>b.onclick=async()=>{const r=await sb.rpc('combo_v25_manage_member',{p_community_id:c.id,p_user_id:b.dataset.memId,p_action:b.dataset.memAction});if(r.error)return toast('تعذر تنفيذ العملية: '+r.error.message);toast(b.dataset.memAction==='kick'?'تم طرد العضو':b.dataset.memAction==='promote'?'تم رفعه مشرفًا':'تم تنزيله من المشرفين');openCommunityProfileV25(c)})}
+    if(owner){q('v25CommSettingsBtn').onclick=()=>openCommunitySettingsV25(c);q('v25JoinRequestsBtn').onclick=()=>openCommunityRequestsV25(c)}
+  }
+
+  async function chooseCommunityMemberV25(c){
+    if(c.owner_id!==currentUser())return toast('إضافة الأعضاء متاحة للمالك فقط');
+    const r=await sb.from('profiles').select('id,display_name,username,avatar_url').neq('id',me.id).order('display_name').limit(200);
+    if(r.error)return toast('تعذر تحميل المستخدمين');
+    sheet('إضافة إلى '+(c.kind==='channel'?'القناة':'الجروب'),`<input id="v25MemberSearch" class="modal-search" placeholder="اكتب اليوزر كاملًا..."><div id="v25MemberList" class="list"></div>`);
+    const render=()=>{const term=(q('v25MemberSearch').value||'').trim().replace(/^@/,'').toLowerCase();const rows=(r.data||[]).filter(x=>!term||String(x.username||'').toLowerCase()===term);q('v25MemberList').innerHTML=rows.length?rows.map(u=>`<button class="setting" data-v25-add-user="${safe(u.id)}"><span>👤 ${safe(u.display_name||u.username)}</span><span>@${safe(u.username||'')}</span></button>`).join(''):'<div class="community-empty">اكتب اليوزر كاملًا.</div>';q('v25MemberList').querySelectorAll('[data-v25-add-user]').forEach(b=>b.onclick=async()=>{const x=await sb.from('community_members').upsert({community_id:c.id,user_id:b.dataset.v25AddUser,role:'member'},{onConflict:'community_id,user_id'});if(x.error)return toast('تعذر إضافة العضو: '+x.error.message);closeSheet();toast('تمت إضافة العضو');openCommunityProfileV25(c)})};
+    q('v25MemberSearch').oninput=render;render();
+  }
+
+  async function openCommunitySettingsV25(c){
+    if(c.owner_id!==currentUser())return toast('الإعدادات للمالك فقط');
+    const fresh=(await getCommunityFresh(c.id)).data||c;
+    const toggle=(id,label,on)=>`<button type="button" class="v25-toggle ${on?'on':''}" id="${id}"><span>${label}</span><b>${on?'مفعل':'متوقف'}</b></button>`;
+    openContactTools('إعدادات '+(fresh.kind==='channel'?'القناة':'المجموعة'),`${toggle('v25InfoToggle','السماح للجميع بتغيير معلومات المجموعة',fresh.allow_info_edit)}${toggle('v25AdminChatToggle','السماح للمشرفين فقط بالتكلم',fresh.admins_only_chat)}${toggle('v25JoinToggle','السماح بالانضمام للمجموعة',fresh.allow_join_requests)}<button class="primary" id="v25SaveCommSettings" style="width:100%;margin-top:10px">حفظ الإعدادات</button>`);
+    let vals={info:!!fresh.allow_info_edit,admin:!!fresh.admins_only_chat,join:!!fresh.allow_join_requests};
+    [['v25InfoToggle','info'],['v25AdminChatToggle','admin'],['v25JoinToggle','join']].forEach(([id,k])=>q(id).onclick=()=>{vals[k]=!vals[k];q(id).classList.toggle('on',vals[k]);q(id).querySelector('b').textContent=vals[k]?'مفعل':'متوقف'});
+    q('v25SaveCommSettings').onclick=async()=>{const r=await sb.rpc('combo_v25_set_community_settings',{p_community_id:c.id,p_allow_info_edit:vals.info,p_admins_only_chat:vals.admin,p_allow_join_requests:vals.join});if(r.error)return toast('تعذر حفظ الإعدادات: '+r.error.message);q('contactToolsModal').classList.add('hidden');toast('تم حفظ إعدادات المجموعة');loadCommunitiesV25()};
+  }
+
+  async function openCommunityRequestsV25(c){
+    const r=await sb.rpc('combo_v25_list_join_requests',{p_community_id:c.id});if(r.error)return toast('تعذر تحميل طلبات الانضمام');
+    const rows=r.data||[];openContactTools('طلبات الانضمام',rows.length?rows.map(x=>`<div class="v25-request"><div class="avatar">${x.avatar_url?`<img src="${safe(x.avatar_url)}">`:initials(x.display_name)}</div><div><strong>${safe(x.display_name||x.username||'مستخدم')}</strong><small>@${safe(x.username||'')}</small></div><div class="v25-request-actions"><button class="yes" data-v25-req="${safe(x.id)}" data-approve="1">✓</button><button class="no" data-v25-req="${safe(x.id)}" data-approve="0">✕</button></div></div>`).join(''):'<div class="empty-card">مفيش طلبات انضمام حاليًا.</div>');
+    document.querySelectorAll('[data-v25-req]').forEach(b=>b.onclick=async()=>{const x=await sb.rpc('combo_v25_review_join_request',{p_request_id:b.dataset.v25Req,p_approve:b.dataset.approve==='1'});if(x.error)return toast('تعذر مراجعة الطلب: '+x.error.message);toast(b.dataset.approve==='1'?'تم قبول الطلب':'تم رفض الطلب');openCommunityRequestsV25(c)})
+  }
+
+  function editCommunityInfoV25(c){
+    openContactTools('تعديل معلومات المجموعة',`<input id="v25EditCommName" value="${safe(c.name)}" placeholder="اسم المجموعة"><textarea id="v25EditCommDesc" placeholder="النبذة">${safe(c.description||'')}</textarea><button class="primary" id="v25SaveCommInfo" style="width:100%;margin-top:10px">حفظ</button>`);
+    q('v25SaveCommInfo').onclick=async()=>{const r=await sb.rpc('combo_v25_update_community_info',{p_community_id:c.id,p_name:q('v25EditCommName').value,p_description:q('v25EditCommDesc').value});if(r.error)return toast('تعذر حفظ المعلومات: '+r.error.message);q('contactToolsModal').classList.add('hidden');toast('تم تحديث معلومات المجموعة');await loadCommunitiesV25();openCommunityProfileV25((await getCommunityFresh(c.id)).data||c)};
+  }
+
+  function reportCommunityV25(c){
+    openContactTools('إبلاغ عن '+c.name,`<textarea id="v25CommunityReportReason" maxlength="500" placeholder="اكتب سبب البلاغ (اختياري)"></textarea><button class="primary" id="v25SendCommunityReport" style="width:100%;margin-top:10px">إرسال البلاغ</button>`);
+    q('v25SendCommunityReport').onclick=async()=>{const reason=q('v25CommunityReportReason').value.trim()||'بلاغ من المستخدم';const r=await sb.from('community_reports').insert({community_id:c.id,reporter_id:me.id,reason});if(r.error)return toast('تعذر إرسال البلاغ: '+r.error.message);q('contactToolsModal').classList.add('hidden');toast('تم إرسال البلاغ')};
+  }
+
+  function renderCommunityRich(c){
+    let panel=q('v25CommunityRich');if(!panel)return;
+    panel.innerHTML=`<div class="emoji-tabs"><button data-crich="emoji" class="emoji-tab active">😊</button><button data-crich="gif" class="emoji-tab">GIF</button><button data-crich="sticker" class="emoji-tab">🧸</button></div><div id="v25CommunityRichBody"></div>`;
+    const body=q('v25CommunityRichBody');
+    const emojis=['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😎','🤩','🤔','😢','😭','😡','🤬','👍','👎','👏','🙏','❤️','💚','🔥','✨','🎉','😂','💯','👋','🤝','💪','🥳','😴','🤗','😱','🤍','🫶','😈','💔','⭐'];
+    const show=t=>{if(t==='emoji'){body.innerHTML=`<div class="v25-community-rich-grid">${emojis.map(x=>`<button type="button">${x}</button>`).join('')}</div>`;body.querySelectorAll('button').forEach(b=>b.onclick=()=>{const i=q('communityMessageInput');if(i){i.value+=b.textContent;i.focus()}})}else if(t==='gif'){body.innerHTML=`<div class="v25-community-gifs">${GIFS.map((src,i)=>`<button type="button" data-cgif="${i}"><img src="${src}" loading="lazy"></button>`).join('')}</div>`;body.querySelectorAll('[data-cgif]').forEach(b=>b.onclick=()=>{sendCommunityRich(c,'gif',b.dataset.cgif);panel.classList.add('hidden')})}else{body.innerHTML=`<div class="v25-community-rich-grid">${['😀','❤️','😂','👍','🔥','🎉','🥰','😎','👏','🙏','💚','✨'].map((x,i)=>`<button type="button" data-cst="${i}">${x}</button>`).join('')}</div>`;body.querySelectorAll('[data-cst]').forEach(b=>b.onclick=()=>{sendCommunityRich(c,'sticker',b.textContent);panel.classList.add('hidden')})}};
+    panel.querySelectorAll('[data-crich]').forEach(b=>b.onclick=()=>{panel.querySelectorAll('[data-crich]').forEach(x=>x.classList.toggle('active',x===b));show(b.dataset.crich)});show('emoji');
+  }
+
+  async function sendCommunityRich(c,type,val){
+    if(c.kind==='channel'&&c.owner_id!==currentUser())return toast('النشر في القناة متاح للمالك أو المشرفين');
+    const content=type==='gif'?`__combo_gif__:${val}`:type==='sticker'?`__combo_community_sticker__:${val}`:(q('communityMessageInput')?.value||'').trim();
+    if(!content)return;
+    const r=await sb.from('community_messages').insert({community_id:c.id,sender_id:me.id,content});
+    if(r.error)return toast('تعذر إرسال الرسالة: '+r.error.message);if(q('communityMessageInput'))q('communityMessageInput').value='';await loadCommunityMessagesV25(c);
+  }
+
+  async function sendCommunityMediaV25(c,file){
+    if(c.kind==='channel'&&c.owner_id!==currentUser())return toast('النشر في القناة متاح للمالك أو المشرفين');
+    const path=`${me.id}/${c.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const up=await sb.storage.from('community-media').upload(path,file,{upsert:false,contentType:file.type});if(up.error)return toast('تعذر رفع الملف: '+up.error.message);
+    const r=await sb.from('community_messages').insert({community_id:c.id,sender_id:me.id,content:'',media_path:path,media_mime:file.type});if(r.error){await sb.storage.from('community-media').remove([path]);return toast('تعذر إرسال الملف: '+r.error.message)}
+    await loadCommunityMessagesV25(c);toast('تم إرسال الملف');
+  }
+
+  async function loadCommunityMessagesV25(c){
+    const box=q('communityMessages');if(!box)return;
+    const r=await sb.from('community_messages').select('id,sender_id,content,created_at,media_path,media_mime').eq('community_id',c.id).order('created_at',{ascending:true}).limit(300);
+    if(r.error){box.innerHTML='<div class="community-empty">تعذر تحميل الرسائل.</div>';return}
+    const ids=[...new Set((r.data||[]).map(x=>x.sender_id).filter(Boolean))];let names={};if(ids.length){const p=await sb.from('profiles').select('id,display_name,username').in('id',ids);(p.data||[]).forEach(x=>names[x.id]=x.display_name||x.username||'مستخدم')}
+    box.innerHTML=(r.data||[]).map(m=>{let body='';if(m.media_path){const u=mediaUrl(m.media_path);body=m.media_mime?.startsWith('video/')?`<video class="community-msg-media" src="${safe(u)}" controls playsinline></video>`:m.media_mime?.startsWith('image/')?`<img class="community-msg-media" src="${safe(u)}" alt="">`:`<a href="${safe(u)}" target="_blank" rel="noopener">📎 فتح الملف</a>`}else if(/^__combo_gif__:\d+$/.test(m.content||'')){const i=Number((m.content||'').split(':')[1]);body=`<img class="community-msg-media" src="${safe(GIFS[i]||GIFS[0])}" alt="GIF">`}else if((m.content||'').startsWith('__combo_community_sticker__:'))body=`<div class="community-sticker">${safe(m.content.split(':').slice(1).join(':'))}</div>`;else body=`<div>${safe(m.content||'')}</div>`;return `<div class="community-message ${m.sender_id===me.id?'mine':''}">${body}<small>${safe(names[m.sender_id]||'مستخدم')} • ${fmt(m.created_at)}</small></div>`}).join('')||'<div class="community-empty">ابدأ أول رسالة هنا.</div>';
+    box.scrollTop=box.scrollHeight;
+  }
+
+  async function openCommunityV25(id){
+    ensureV25CommunityStyles();const c=await getCommunityV25(id);if(!c)return toast('تعذر فتح الجروب أو القناة');
+    let modal=q('communityChatModal');if(!modal){modal=document.createElement('div');modal.id='communityChatModal';modal.className='modal hidden';document.body.appendChild(modal)}
+    const owner=c.owner_id===currentUser();
+    modal.innerHTML=`<div class="community-modal" style="position:relative"><header class="community-head"><button id="communityClose" class="icon-btn">✕</button><div class="community-icon">${c.avatar_url?`<img src="${safe(c.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:13px">`:c.kind==='channel'?'📢':'👥'}</div><div class="community-info" id="v25CommunityTitle"><strong>${safe(c.name)}</strong><small>${c.kind==='channel'?'قناة':'جروب'}</small></div></header><div id="communityMessages" class="community-messages"><div class="community-empty">جاري تحميل الرسائل...</div></div><div id="v25CommunityRich" class="v25-community-rich hidden"></div><div class="v25-community-compose"><button id="v25CommEmoji">😊</button><button id="v25CommGif">GIF</button><button id="v25CommAttach">＋</button><input id="communityMessageInput" placeholder="اكتب رسالة..."><button id="communitySend">➤</button></div></div>`;
+    modal.classList.remove('hidden');
+    q('communityClose').onclick=()=>modal.classList.add('hidden');
+    q('v25CommunityTitle').onclick=()=>openCommunityProfileV25(c);
+    q('communitySend').onclick=()=>sendCommunityRich(c,'text','');
+    q('communityMessageInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendCommunityRich(c,'text','')}};
+    q('v25CommEmoji').onclick=()=>{const p=q('v25CommunityRich');p.classList.toggle('hidden');if(!p.classList.contains('hidden'))renderCommunityRich(c)};
+    q('v25CommGif').onclick=()=>{const p=q('v25CommunityRich');p.classList.remove('hidden');renderCommunityRich(c);p.querySelector('[data-crich="gif"]')?.click()};
+    q('v25CommAttach').onclick=()=>{let inp=q('v25CommunityFileInput');if(!inp){inp=document.createElement('input');inp.id='v25CommunityFileInput';inp.type='file';inp.accept='image/*,video/*,audio/*';inp.hidden=true;document.body.appendChild(inp);inp.onchange=async e=>{for(const f of [...(e.target.files||[])])await sendCommunityMediaV25(c,f);inp.value=''}}inp.click()};
+    await loadCommunityMessagesV25(c);
+  }
+
+  // Invite links now respect the owner-controlled join-request switch.
+  function handleInviteV25(){
+    if(!currentUser())return;const code=new URLSearchParams(location.search).get('community');if(!code||q('v25InvitePending'))return;
+    const m=document.createElement('div');m.id='v25InvitePending';document.body.appendChild(m);
+    sb.rpc('combo_v25_join_by_invite',{p_code:code}).then(r=>{if(r.error){toast('تعذر فتح رابط الجروب أو القناة: '+r.error.message);return}history.replaceState({},'',APP_BASE_URL);const x=r.data?.[0];if(x?.status==='pending')toast('تم إرسال طلب الانضمام للمالك');else toast('تم الانضمام بنجاح');loadCommunitiesV25();if(x?.id)setTimeout(()=>openCommunityV25(x.id),300)})
+  }
+
+  // Exact username search, case-insensitive, while still requiring the complete username.
+  function patchExactUsernameSearch(){
+    const old=q('userSearch');if(!old)return;const fresh=old.cloneNode(true);old.replaceWith(fresh);fresh.addEventListener('input',async()=>{const box=q('searchResults');const term=(fresh.value||'').trim().replace(/^@/,'');if(!term){box?.classList.add('hidden');return}box?.classList.remove('hidden');if(!/^[a-zA-Z0-9_.]{3,32}$/.test(term)){if(box)box.innerHTML='<div class="muted" style="padding:12px">اكتب اليوزر كاملًا.</div>';return}const r=await sb.from('profiles').select('id,username,display_name,avatar_url,phone,bio,last_seen,privacy_last_seen').ilike('username',term).neq('id',me?.id||'').limit(1);if(r.error){console.warn(r.error);box.innerHTML='<div class="muted" style="padding:12px">تعذر البحث حاليًا.</div>';return}const u=r.data?.[0];if(!u){box.innerHTML='<div class="muted" style="padding:12px">مفيش حساب باليوزر ده.</div>';return}box.innerHTML=`<div class="result-item" data-id="${safe(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${safe(u.avatar_url)}">`:initials(u.display_name)}</div><div class="chat-info"><strong>${safe(u.display_name||'مستخدم')}</strong><small>@${safe(u.username)}</small></div><button class="contact-action primary-inline">دردشة</button></div>`;box.querySelector('.result-item').onclick=()=>openUser(u.id)})
+  }
+
+  function openV25ImageViewer(url,mime,u){
+    let v=q('v25ProfileViewer');if(!v){v=document.createElement('div');v.id='v25ProfileViewer';v.className='v25-profile-viewer hidden';document.body.appendChild(v)}
+    v.innerHTML=`<div class="v25-profile-viewer-box"><button class="icon-btn" id="v25ViewerClose">✕</button><div class="v25-profile-viewer-media">${mime?.startsWith('video/')?`<video src="${safe(url)}" controls autoplay playsinline style="max-width:100%;max-height:100%"></video>`:`<img src="${safe(url)}" alt="صورة الملف الشخصي">`}</div><div class="v25-profile-viewer-actions"><button id="v25ViewerSave">⬇️ حفظ الصورة</button><button id="v25ViewerReport">⚠️ إبلاغ</button><button id="v25ViewerShare">↗ مشاركة</button></div></div>`;
+    v.classList.remove('hidden');q('v25ViewerClose').onclick=()=>v.classList.add('hidden');q('v25ViewerSave').onclick=()=>{const a=document.createElement('a');a.href=url;a.download='ComboApp-profile';a.target='_blank';a.click()};q('v25ViewerShare').onclick=async()=>{if(navigator.share)try{await navigator.share({title:u?.display_name||'ComboApp',url})}catch(_){}else{try{await navigator.clipboard.writeText(url);toast('تم نسخ الرابط')}catch(_){}}};q('v25ViewerReport').onclick=()=>{if(u)showContactReportForUser(u)};
+  }
+  function showContactReportForUser(u){openContactTools('إبلاغ عن '+(u.display_name||'الشخص'),`<textarea id="v25UserReportReason" maxlength="500" placeholder="اكتب سبب البلاغ (اختياري)"></textarea><button class="primary" id="v25UserReportSend" style="width:100%;margin-top:10px">إرسال البلاغ</button>`);q('v25UserReportSend').onclick=async()=>{const r=await sb.from('reports').insert({reporter_id:me.id,reported_user_id:u.id,reason:q('v25UserReportReason').value.trim()||'بلاغ من المستخدم'});if(r.error)return toast('تعذر إرسال البلاغ');q('contactToolsModal').classList.add('hidden');q('v25ProfileViewer')?.classList.add('hidden');toast('تم إرسال البلاغ')}}
+
+  function patchContactProfileV25(){
+    const av=q('otherProfileAvatar');if(!av||av.dataset.v25==='1')return;av.dataset.v25='1';av.onclick=async()=>{if(!activeChat?.user?.avatar_url)return toast('مفيش صورة لعرضها');openV25ImageViewer(activeChat.user.avatar_url,activeChat.user.avatar_url.match(/\.(mp4|webm|mov)(\?|$)/i)?'video/':'image/',activeChat.user)};
+    const oldOpen=window.openOtherProfile;window.openOtherProfile=async function(u){if(!u)return;let fresh=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle();if(fresh.data)u=fresh.data;q('otherProfileName').textContent=u.display_name||'مستخدم';q('otherProfileUsername').textContent=u.username?'@'+u.username:'';q('otherProfilePhone').textContent=u.phone?'📱 '+u.phone:'';q('otherProfileBio').textContent=u.bio||'';q('otherProfileAvatar').innerHTML=u.avatar_url?`<img src="${safe(u.avatar_url)}">`:safe(initials(u.display_name));let status='آخر ظهور غير متاح';if(u.privacy_last_seen!=='nobody'){let allowed=true;if(u.privacy_last_seen==='contacts'){const cr=await sb.from('conversations').select('id').or(`and(user1_id.eq.${me.id},user2_id.eq.${u.id}),and(user1_id.eq.${u.id},user2_id.eq.${me.id})`).limit(1);allowed=!!cr.data?.length}if(allowed)status=userOnlineText(u.last_seen)}q('otherProfileStatus').textContent=status;q('otherProfileModal').classList.remove('hidden');
+      if(q('otherNotifyBtn'))q('otherNotifyBtn').onclick=async()=>{const p=await getContactPrefs(u.id);const r=await saveContactPrefs(u.id,{muted:!p.muted});if(r.error)return toast('تعذر حفظ الإعداد');toast(!p.muted?'تم كتم الإشعارات':'تم تشغيل الإشعارات');window.openOtherProfile(u)};
+      if(q('otherMediaBtn'))q('otherMediaBtn').onclick=showContactMedia;
+      if(q('otherSearchBtn'))q('otherSearchBtn').onclick=showContactSearch;
+      if(q('otherPrivacyBtn'))q('otherPrivacyBtn').onclick=showContactPrivacy;
+      if(q('otherReportBtn'))q('otherReportBtn').onclick=()=>showContactReportForUser(u);
+      if(q('otherBlockBtn'))q('otherBlockBtn').onclick=async()=>{const p=await getContactPrefs(u.id);const r=await saveContactPrefs(u.id,{blocked:!p.blocked});if(r.error)return toast('تعذر حفظ الحظر');toast(!p.blocked?'تم حظر الشخص':'تم إلغاء حظر الشخص');window.openOtherProfile(u)};
+      if(q('otherDeleteChatBtn'))q('otherDeleteChatBtn').onclick=async()=>{closeOtherProfile();await deleteChat()};
+      if(typeof patchContactActions==='function')setTimeout(patchContactActions,0);};
+  }
+
+  // Archived chats: explicit unarchive action inside the archive list.
+  const originalRenderChats=renderChats;
+  renderChats=async function(archived){
+    await originalRenderChats(archived);
+    if(!archived)return;
+    const target=q('archivedList');if(!target)return;
+    target.querySelectorAll('.chat-item[data-cid]').forEach(el=>{const old=el.querySelector('.chat-meta');if(old&&!el.querySelector('.v25-unarchive')){const b=document.createElement('button');b.className='v25-unarchive';b.type='button';b.textContent='إلغاء الأرشفة';b.onclick=async e=>{e.stopPropagation();const c=await sb.from('conversations').select('*').eq('id',el.dataset.cid).single();if(!c.data)return;activeChat={conversation:c.data,user:null};const r=await sb.from('conversation_settings').update({archived:false}).eq('conversation_id',c.data.id).eq('user_id',me.id);if(r.error)return toast('تعذر إلغاء الأرشفة');await loadArchived();toast('تم إلغاء الأرشفة');await loadChats()};old.appendChild(b)}})
+  };
+
+  function finalV25(){
+    ensureV25CommunityStyles();
+    patchExactUsernameSearch();patchContactProfileV25();
+    if(typeof ensureCommunityHome==='function')ensureCommunityHome();
+    const ref=q('refreshBtn');if(ref){ref.onclick=async()=>{await loadChats();await loadCommunitiesV25();toast('تم التحديث')}}
+    if(me)loadCommunitiesV25();
+    setTimeout(handleInviteV25,700);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',finalV25,{once:true});else finalV25();
+  window.loadCommunities=loadCommunitiesV25;window.openCommunity=openCommunityV25;window.openCommunityProfileV25=openCommunityProfileV25;
+})();
