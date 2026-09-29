@@ -14,6 +14,12 @@ async function loadCloudSettings(){if(!me?.id)return;const r=await sb.from("user
 let cloudSaveTimer=null;
 function saveCloudSetting(key,value){cloudSettings[key]=value;clearTimeout(cloudSaveTimer);cloudSaveTimer=setTimeout(async()=>{if(!me?.id)return;const r=await sb.from("user_settings").upsert({user_id:me.id,settings:cloudSettings,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(r.error)console.warn("Cloud setting save failed",r.error)},120)}
 function setComboSetting(key,value){localStorage.setItem("combo_"+key,String(value));saveCloudSetting(key,value)}
+
+// V23 stability fix: these settings helpers must be global.
+// Older V4 code kept them inside a private IIFE, while later controls
+// (notifications/chat styling/etc.) call them from global functions.
+function setting(key,def){return localStorage.getItem("combo_"+key) ?? def}
+function setSetting(key,val){localStorage.setItem("combo_"+key,String(val));saveCloudSetting(key,val)}
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))} async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 let _comboEntering=null;
 async function init(){try{
@@ -35,7 +41,7 @@ function bind(){
   click('openChatSettings',()=>{closeGlobalSettings();showChatStyle()});
   click('openWallpaperSetting',()=>{closeGlobalSettings();showWallpaper()});
   click('openAccountSetting',()=>{closeGlobalSettings();go('profilePage')});
-  click('globalLogoutBtn',logout); updateNotificationBell();
+  click('globalLogoutBtn',logout); try{updateNotificationBell()}catch(e){console.warn('notification init',e)}
   document.querySelectorAll('.nav').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
   on('userSearch','input',searchUsers); click('newChatBtn',openContacts); click('refreshBtn',loadChats); click('archivedBtn',()=>{go('archivedPage');loadArchived()}); click('backHomeBtn',()=>go('homePage'));
   click('sendMessageBtn',sendMessage); on('messageInput','keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}});
@@ -1491,7 +1497,7 @@ function userOnlineText(lastSeen){
   $('profileChangeV22').onclick=()=>$('avatarFileInput')?.click();
   // Capture the avatar tap before older V5/profile handlers so there is exactly one action: fullscreen viewer.
   $('avatarActionBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();openProfileViewer()},true);
-  $('profileMediaInput')?.addEventListener('change',()=>setTimeout(refreshViewer,250));
+  $('profileMediaInput')?.addEventListener('change',()=>setTimeout(refreshViewer,500));
 
   // Make wallpaper picker reliable and visible even if an older wrapper is still present.
   const oldShowWallpaper=window.showWallpaper;
