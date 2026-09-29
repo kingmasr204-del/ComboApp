@@ -2794,3 +2794,125 @@ init();
 (function V32CSS(){const s=document.createElement('style');s.id='v32Css';s.textContent=`
 .v32-wall-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:70vh;overflow:auto}.v32-wall-card{display:flex;flex-direction:column;padding:0;border:1px solid #16464e;background:#09242c;color:#fff;border-radius:13px;overflow:hidden;text-align:right;min-height:145px}.v32-wall-card img,.v32-wall-card span{display:block;width:100%;height:112px;object-fit:cover}.v32-wall-card b{display:block;padding:9px;font-size:12px}.v32-wall-actions{display:grid;gap:7px;margin-top:9px}.v32-story-colors{order:0}.story-composer .story-canvas{background:#0a1820!important}.story-composer .story-canvas.text-mode textarea{background:transparent!important;border:0!important;box-shadow:none!important;width:100%!important;height:100%!important}.v32-compose{display:flex;gap:6px;align-items:center;padding:9px;background:#071d24;border-top:1px solid #16434a}.v32-compose button{border:0;background:#0d2c34;color:#eafffa;border-radius:13px;min-width:42px;height:42px}.v32-compose button:last-child{background:#00cfa8;color:#032019;font-size:20px}.v32-compose input{flex:1;min-width:0;border:1px solid #164a52;background:#06151b;color:#fff;border-radius:16px;padding:11px 13px;outline:0}.v32-community-profile{max-height:94vh;overflow:auto}.v32-owner{padding:10px 12px;background:#0b242c;border-radius:12px;margin:8px 0;color:#9ee9d9}.v32-community-avatar-wrap{text-align:center}.v32-community-avatar-wrap .v29-cp-avatar{margin-bottom:7px}.v32-gallery-sheet{width:min(760px,100vw);height:100%;background:#02090d;color:#fff;display:flex;flex-direction:column;padding:14px;box-sizing:border-box}.v32-gallery-main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}.v32-gallery-main img,.v32-gallery-main video{max-width:100%;max-height:72vh;object-fit:contain;border-radius:14px}.v32-gallery-info{text-align:center;padding:8px}.v32-gallery-thumbs{display:flex;gap:7px;overflow:auto;padding:6px}.v32-gallery-thumbs button{width:64px;height:64px;flex:0 0 64px;padding:0;border:2px solid transparent;background:#10242b;border-radius:9px;overflow:hidden}.v32-gallery-thumbs button.active{border-color:#00e6b0}.v32-gallery-thumbs img,.v32-gallery-thumbs video{width:100%;height:100%;object-fit:cover}.v32-gallery-actions{display:flex;gap:8px;padding-top:8px}.v32-gallery-actions button{flex:1;border:1px solid #17434a;background:#09242c;color:#fff;border-radius:12px;padding:11px}.v32-gallery-actions .danger{background:#4b1820}.v32-edit-sheet{width:min(520px,94vw);background:#071820;border-radius:22px;padding:16px}.v32-edit-row{display:flex;gap:7px;align-items:center}.v32-edit-row input{flex:1;background:#06151b;border:1px solid #164a52;color:#fff;border-radius:15px;padding:13px;outline:0}.v32-edit-row button{width:48px;height:48px;border:0;border-radius:14px;background:#00cfa8;color:#032019;font-size:20px}.v32-msg-actions{}@media(max-width:480px){.v32-wall-grid{grid-template-columns:repeat(2,1fr)}}
 `;document.head.appendChild(s)})();
+
+/* ===== ComboApp V33 — search/save + WhatsApp-style group management repair ===== */
+(function V33(){
+  const q=id=>document.getElementById(id);
+  const e=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const toast33=m=>typeof window.toast==='function'?window.toast(m):console.log(m);
+  const uid=()=>window.me?.id || window.currentUser?.()?.id;
+
+  // Username search: partial/contains search, no privacy gate, and no dependency on the optional phone column.
+  window.searchUsers=async function(){
+    const input=q('userSearch'),box=q('searchResults'); if(!input||!box||!uid())return;
+    const term=(input.value||'').trim().replace(/^@/,'').toLowerCase();
+    if(!term){box.classList.add('hidden');return;}
+    box.classList.remove('hidden');
+    if(!/^[a-z0-9_.]{1,24}$/.test(term)){box.innerHTML='<div class="muted" style="padding:12px">اكتب جزء من اليوزر بالإنجليزي أو أرقام أو _ أو .</div>';return;}
+    try{
+      const r=await sb.from('profiles').select('id,username,display_name,avatar_url').ilike('username','%'+term+'%').neq('id',uid()).order('username').limit(50);
+      if(r.error)throw r.error;
+      const rows=r.data||[];
+      box.innerHTML=rows.length?rows.map(u=>`<div class="result-item" data-id="${e(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${e(u.avatar_url)}">`:e(window.initials?window.initials(u.display_name||u.username):'👤')}</div><div class="chat-info"><strong>${e(u.display_name||u.username||'مستخدم')}</strong><small>@${e(u.username||'')}</small></div><button class="contact-action primary-inline">دردشة</button></div>`).join(''):'<div class="muted" style="padding:12px">مفيش مستخدمين مطابقين.</div>';
+      box.querySelectorAll('.result-item').forEach(x=>x.onclick=()=>window.openUser?.(x.dataset.id));
+    }catch(err){console.warn('V33 search',err);box.innerHTML='<div class="muted" style="padding:12px">تعذر البحث حاليًا. جرّب مرة تانية.</div>';}
+  };
+  const us=q('userSearch'); if(us){const n=us.cloneNode(true);us.replaceWith(n);n.addEventListener('input',window.searchUsers);n.addEventListener('keyup',window.searchUsers);}
+
+  // Profile save: retry without phone when an older Supabase schema has no phone column.
+  function bindSave(){
+    const old=q('saveProfileBtn'); if(!old||old.dataset.v33==='1')return;
+    const b=old.cloneNode(true);old.replaceWith(b);b.dataset.v33='1';
+    b.onclick=async()=>{
+      const display_name=(q('profileName')?.value||'').trim(),username=(q('profileUsername')?.value||'').trim().toLowerCase();
+      const phone=(q('profilePhone')?.value||'').replace(/\D/g,''); const bio=(q('profileBio')?.value||'').trim();
+      if(!display_name||!username)return toast33('الاسم واسم المستخدم مطلوبين');
+      if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast33('اسم المستخدم 3-24 حرفًا: إنجليزي وأرقام و _ و . فقط');
+      const uq=await sb.from('profiles').select('id').eq('username',username).neq('id',uid()).maybeSingle();
+      if(uq.error)return toast33('تعذر التحقق من اسم المستخدم: '+uq.error.message);
+      if(uq.data)return toast33('اسم المستخدم مستخدم بالفعل');
+      const now=new Date().toISOString();
+      let r=await sb.from('profiles').update({display_name,username,phone:phone||null,bio,last_seen:now}).eq('id',uid()).select('*').maybeSingle();
+      if(r.error && /phone.*column|column.*phone|schema cache/i.test(r.error.message||'')){
+        // Older DB: save all supported profile fields first, then keep phone locally until the SQL repair is run.
+        r=await sb.from('profiles').update({display_name,username,bio,last_seen:now}).eq('id',uid()).select('*').maybeSingle();
+        if(phone)localStorage.setItem('combo_profile_phone_'+uid(),phone); else localStorage.removeItem('combo_profile_phone_'+uid());
+      }
+      if(r.error)return toast33('تعذر حفظ البيانات: '+r.error.message);
+      if(!r.data)return toast33('تعذر حفظ البيانات');
+      window.me={...window.me,...r.data,phone:r.data.phone||phone||window.me?.phone||null};
+      toast33('تم حفظ البيانات بنجاح');
+    };
+  }
+
+  function communityCard(id){return sb.from('communities').select('*').eq('id',id).maybeSingle().then(r=>r.data||null)}
+  async function ensureInvite(c){
+    if(c.invite_code)return c.invite_code;
+    if(c.owner_id!==uid())return '';
+    const r=await sb.rpc('combo_v28_ensure_invite',{p_community_id:c.id});
+    if(!r.error){c.invite_code=r.data;return r.data;}
+    // Last-resort direct update for owner if the RPC is missing.
+    const code=Math.random().toString(36).slice(2,14);
+    const u=await sb.from('communities').update({invite_code:code}).eq('id',c.id).eq('owner_id',uid());
+    if(!u.error){c.invite_code=code;return code;}
+    return '';
+  }
+  function communityLink(c,code){return code?(location.origin+location.pathname+'?community='+encodeURIComponent(code)):''}
+
+  async function renderMembers(c,box){
+    const r=await sb.rpc('combo_v25_get_community_members',{p_community_id:c.id});
+    if(r.error){box.innerHTML='<div class="muted">تعذر تحميل الأعضاء: '+e(r.error.message)+'</div>';return r.data||[]}
+    const rows=r.data||[]; const owner=c.owner_id===uid();
+    box.innerHTML='<h3>👥 الأعضاء والمشرفون</h3>'+rows.map(m=>`<div class="v33-member"><div class="v33-member-main"><span class="avatar tiny">${m.avatar_url?`<img src="${e(m.avatar_url)}">`:e(window.initials?window.initials(m.display_name||m.username):'👤')}</span><span><strong>${e(m.display_name||m.username||'مستخدم')}</strong><small>@${e(m.username||'')} · ${m.role==='owner'?'👑 المالك':m.role==='admin'?'🛡️ مشرف':'عضو'}</small></span></div>${owner&&m.user_id!==uid()?`<div class="v33-member-actions"><button data-v33-role="${e(m.user_id)}" data-action="${m.role==='admin'?'demote':'promote'}">${m.role==='admin'?'تنزيل من المشرفين':'رفع مشرف'}</button><button data-v33-kick="${e(m.user_id)}" class="danger">طرد</button></div>`:''}</div>`).join('')||'<div class="muted">مفيش أعضاء.</div>';
+    box.querySelectorAll('[data-v33-role]').forEach(b=>b.onclick=async()=>{const z=await sb.rpc('combo_v25_manage_member',{p_community_id:c.id,p_user_id:b.dataset.v33Role,p_action:b.dataset.action});if(z.error)return toast33('تعذر تعديل المشرف: '+z.error.message);await renderMembers(c,box);});
+    box.querySelectorAll('[data-v33-kick]').forEach(b=>b.onclick=async()=>{if(!confirm('طرد العضو من المجموعة؟'))return;const z=await sb.rpc('combo_v25_manage_member',{p_community_id:c.id,p_user_id:b.dataset.v33Kick,p_action:'kick'});if(z.error)return toast33('تعذر طرد العضو: '+z.error.message);await renderMembers(c,box);});
+    return rows;
+  }
+  async function addMembers(c){
+    if(c.owner_id!==uid())return toast33('إضافة الأعضاء متاحة للمالك فقط');
+    const r=await sb.from('profiles').select('id,username,display_name,avatar_url').neq('id',uid()).order('display_name').limit(500);
+    if(r.error)return toast33('تعذر تحميل المستخدمين: '+r.error.message);
+    const members=await sb.rpc('combo_v25_get_community_members',{p_community_id:c.id}); const existing=new Set((members.data||[]).map(x=>x.user_id));
+    const m=document.createElement('div');m.className='modal hidden';m.innerHTML=`<div class="v33-sheet"><button id="v33AddClose" class="icon-btn">✕</button><h2>إضافة أعضاء</h2><input id="v33AddSearch" class="modal-search" placeholder="ابحث بالاسم أو اليوزر..."><div id="v33AddList"></div></div>`;document.body.appendChild(m);m.classList.remove('hidden');
+    const draw=()=>{const t=(q('v33AddSearch').value||'').toLowerCase();const rows=(r.data||[]).filter(x=>!existing.has(x.id)&&(!t||String(x.display_name||'').toLowerCase().includes(t)||String(x.username||'').toLowerCase().includes(t)));q('v33AddList').innerHTML=rows.map(x=>`<button class="v33-user-row" data-id="${e(x.id)}"><span>${x.avatar_url?`<img src="${e(x.avatar_url)}">`:'👤'}</span><strong>${e(x.display_name||x.username)}</strong><small>@${e(x.username||'')}</small><b>＋</b></button>`).join('')||'<div class="muted">مفيش نتائج.</div>';m.querySelectorAll('[data-id]').forEach(b=>b.onclick=async()=>{const z=await sb.rpc('combo_v28_add_member',{p_community_id:c.id,p_user_id:b.dataset.id});if(z.error)return toast33('تعذر إضافة العضو: '+z.error.message);existing.add(b.dataset.id);b.remove();toast33('تمت إضافة العضو')})};
+    q('v33AddClose').onclick=()=>m.remove();q('v33AddSearch').oninput=draw;draw();
+  }
+  async function editCommunityInfo(c){
+    const m=document.createElement('div');m.className='modal hidden';m.innerHTML=`<div class="v33-sheet"><button id="v33InfoClose" class="icon-btn">✕</button><h2>معلومات المجموعة</h2><label>اسم المجموعة<input id="v33Name" value="${e(c.name)}"></label><label>النبذة<textarea id="v33Desc">${e(c.description||'')}</textarea></label><button id="v33InfoSave" class="primary">حفظ التغييرات</button></div>`;document.body.appendChild(m);m.classList.remove('hidden');
+    q('v33InfoClose').onclick=()=>m.remove();q('v33InfoSave').onclick=async()=>{const z=await sb.rpc('combo_v25_update_community_info',{p_community_id:c.id,p_name:q('v33Name').value,p_description:q('v33Desc').value});if(z.error)return toast33('تعذر حفظ معلومات المجموعة: '+z.error.message);m.remove();toast33('تم تحديث معلومات المجموعة');openCommunityProfile33(c)};
+  }
+  async function groupSettings(c){
+    const owner=c.owner_id===uid();if(!owner)return toast33('إعدادات المجموعة متاحة للمالك');
+    const m=document.createElement('div');m.className='modal hidden';m.innerHTML=`<div class="v33-sheet"><button id="v33SetClose" class="icon-btn">✕</button><h2>⚙️ إعدادات المجموعة</h2><div class="v33-setting"><strong>من يمكنه إرسال الرسائل؟</strong><label><input type="radio" name="v33chat" value="all" ${c.admins_only_chat?'':'checked'}> جميع الأعضاء</label><label><input type="radio" name="v33chat" value="admins" ${c.admins_only_chat?'checked':''}> المشرفون فقط</label></div><div class="v33-setting"><strong>من يمكنه تعديل معلومات المجموعة؟</strong><label><input type="radio" name="v33info" value="all" ${c.allow_info_edit===false?'':'checked'}> جميع الأعضاء</label><label><input type="radio" name="v33info" value="admins" ${c.allow_info_edit===false?'checked':''}> المشرفون فقط</label></div><div class="v33-setting"><strong>الانضمام بالرابط</strong><label><input id="v33Join" type="checkbox" ${c.allow_join_requests?'checked':''}> السماح بطلبات الانضمام عبر الرابط</label></div><button id="v33SetSave" class="primary">حفظ الإعدادات</button></div>`;document.body.appendChild(m);m.classList.remove('hidden');
+    q('v33SetClose').onclick=()=>m.remove();q('v33SetSave').onclick=async()=>{const z=await sb.rpc('combo_v25_set_community_settings',{p_community_id:c.id,p_allow_info_edit:q('v33SetSave').parentElement.querySelector('[name="v33info"]:checked').value==='all',p_admins_only_chat:q('v33SetSave').parentElement.querySelector('[name="v33chat"]:checked').value==='admins',p_allow_join_requests:q('v33Join').checked});if(z.error)return toast33('تعذر حفظ الإعدادات: '+z.error.message);m.remove();toast33('تم حفظ إعدادات المجموعة');openCommunityProfile33(c)};
+  }
+  async function changePhoto(c){
+    const choice=confirm('اضغط «موافق» لاختيار/تغيير صورة المجموعة، أو «إلغاء» لحذف الصورة الحالية.');
+    if(!choice){const z=await sb.from('communities').update({avatar_url:null}).eq('id',c.id).eq('owner_id',uid());if(z.error)return toast33('تعذر حذف الصورة: '+z.error.message);toast33('تم حذف صورة المجموعة');return openCommunityProfile33(c)}
+    let i=q('v33PhotoInput');if(!i){i=document.createElement('input');i.id='v33PhotoInput';i.type='file';i.accept='image/*';i.hidden=true;document.body.appendChild(i);i.onchange=async()=>{const f=i.files?.[0];i.value='';if(!f)return;const path=`${uid()}/${c.id}/avatar-${crypto.randomUUID()}-${String(f.name).replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from('community-media').upload(path,f,{upsert:false,contentType:f.type});if(up.error)return toast33('تعذر رفع الصورة: '+up.error.message);const pub=sb.storage.from('community-media').getPublicUrl(path).data.publicUrl;const z=await sb.from('communities').update({avatar_url:pub}).eq('id',c.id).eq('owner_id',uid());if(z.error)return toast33('تعذر حفظ صورة المجموعة: '+z.error.message);toast33('تم تغيير صورة المجموعة');openCommunityProfile33({...c,avatar_url:pub})}}i.click();
+  }
+  async function openCommunityProfile33(c0){
+    const c=(await communityCard(c0.id))||c0;if(!c)return;
+    const code=await ensureInvite(c),link=communityLink(c,code);let modal=q('v33CommunityProfile');if(!modal){modal=document.createElement('div');modal.id='v33CommunityProfile';modal.className='modal hidden';document.body.appendChild(modal)}modal.classList.remove('hidden');
+    const owner=c.owner_id===uid();
+    modal.innerHTML=`<div class="v33-profile-sheet"><button id="v33Close" class="icon-btn">✕</button><div class="v33-photo-wrap"><button id="v33Photo" class="v33-group-avatar">${c.avatar_url?`<img src="${e(c.avatar_url)}">`:c.kind==='channel'?'📢':'👥'}</button>${owner?'<small>اضغط على الصورة لإضافة أو تغيير أو حذف الصورة</small>':''}</div><h2>${e(c.name)}</h2><p>${e(c.description||'لا توجد نبذة')}</p><div class="v33-owner">👑 المالك: ${owner?'أنت':'مالك المجموعة'}</div><div class="v33-link-row"><input readonly value="${e(link)}"><button id="v33Copy">نسخ</button><button id="v33Share">مشاركة</button></div><div class="v33-actions"><button id="v33Info">✏️ تعديل الاسم والنبذة</button><button id="v33Add">👤➕ إضافة أعضاء</button>${owner?'<button id="v33Manage">🛡️ إدارة المشرفين</button><button id="v33Settings">⚙️ إعدادات المجموعة</button><button id="v33Requests">📥 طلبات الانضمام</button>':''}<button id="v33Media">🖼️ الوسائط والملفات</button><button id="v33Report">⚠️ إبلاغ</button>${owner?'<button id="v33Delete" class="danger">🗑️ حذف المجموعة نهائيًا</button>':'<button id="v33Leave" class="danger">🚪 الخروج من المجموعة</button>'}</div><div id="v33Members"></div></div>`;
+    q('v33Close').onclick=()=>modal.classList.add('hidden');q('v33Photo').onclick=()=>owner&&changePhoto(c);q('v33Info').onclick=()=>editCommunityInfo(c);q('v33Add').onclick=()=>addMembers(c);q('v33Manage')?.addEventListener('click',()=>q('v33Members')?.scrollIntoView({behavior:'smooth'}));q('v33Settings')?.addEventListener('click',()=>groupSettings(c));
+    q('v33Copy').onclick=async()=>{if(!link)return toast33('رابط الدعوة غير متاح');try{await navigator.clipboard.writeText(link);toast33('تم نسخ رابط المجموعة')}catch(_){prompt('رابط المجموعة:',link)}};
+    q('v33Share').onclick=()=>navigator.share?navigator.share({title:c.name,text:'انضم إلى '+c.name,url:link}):q('v33Copy').click();
+    q('v33Report').onclick=async()=>{const reason=prompt('سبب الإبلاغ:','إبلاغ عن المجموعة')||'إبلاغ عن المجموعة';const z=await sb.from('community_reports').insert({community_id:c.id,reporter_id:uid(),reason});toast33(z.error?'تعذر إرسال البلاغ':'تم إرسال البلاغ')};
+    q('v33Delete')?.addEventListener('click',async()=>{if(!confirm('حذف المجموعة نهائيًا؟'))return;const z=await sb.from('communities').delete().eq('id',c.id).eq('owner_id',uid());if(z.error)return toast33('تعذر حذف المجموعة: '+z.error.message);modal.classList.add('hidden');q('communityChatModal')?.classList.add('hidden');window.loadCommunities?.();toast33('تم حذف المجموعة')});
+    q('v33Leave')?.addEventListener('click',async()=>{const z=await sb.rpc('combo_v25_leave_community',{p_community_id:c.id});if(z.error)return toast33(z.error.message);modal.classList.add('hidden');q('communityChatModal')?.classList.add('hidden');window.loadCommunities?.();toast33('تم الخروج من المجموعة')});
+    q('v33Media').onclick=()=>{if(typeof window.openCommunityProfileV25==='function')window.openCommunityProfileV25(c);setTimeout(()=>q('v29Gallery')?.click(),100)};
+    q('v33Requests')?.addEventListener('click',async()=>{const r=await sb.rpc('combo_v25_list_join_requests',{p_community_id:c.id});if(r.error)return toast33(r.error.message);const s=document.createElement('div');s.className='modal hidden';s.innerHTML=`<div class="v33-sheet"><button class="icon-btn" id="v33ReqClose">✕</button><h2>طلبات الانضمام</h2><div>${(r.data||[]).map(x=>`<div class="v33-request"><span>${e(x.display_name||x.username)}</span><button data-ok="${e(x.id)}">✓ قبول</button><button data-no="${e(x.id)}">✕ رفض</button></div>`).join('')||'<div class="muted">مفيش طلبات.</div>'}</div></div>`;document.body.appendChild(s);s.classList.remove('hidden');s.querySelector('#v33ReqClose').onclick=()=>s.remove();s.querySelectorAll('[data-ok],[data-no]').forEach(b=>b.onclick=async()=>{const z=await sb.rpc('combo_v25_review_join_request',{p_request_id:b.dataset.ok||b.dataset.no,p_approve:!!b.dataset.ok});if(z.error)return toast33(z.error.message);s.remove();openCommunityProfile33(c)})});
+    await renderMembers(c,q('v33Members'));
+  }
+  window.openCommunityProfileV25=openCommunityProfile33;
+  window.openCommunityProfile33=openCommunityProfile33;
+  window.openCommunityProfile32=openCommunityProfile33;
+  function boot(){bindSave();}
+  setTimeout(boot,100);setTimeout(boot,800);setTimeout(boot,1800);
+})();
+
+(function V33CSS(){const s=document.createElement('style');s.textContent=`
+.v33-profile-sheet,.v33-sheet{width:min(760px,96vw);max-height:94vh;overflow:auto;background:#061820;color:#fff;border:1px solid #15515b;border-radius:22px;padding:16px;box-sizing:border-box}.v33-profile-sheet{margin:auto}.v33-photo-wrap{text-align:center}.v33-group-avatar{width:118px;height:118px;border-radius:50%;border:2px solid #00dcb0;background:#0b2b34;color:#fff;overflow:hidden;font-size:48px;cursor:pointer}.v33-group-avatar img{width:100%;height:100%;object-fit:cover}.v33-photo-wrap small{display:block;color:#9cc8c8;margin:6px}.v33-owner,.v33-link-row{margin:10px 0;padding:10px;border-radius:13px;background:#0a252d}.v33-link-row{display:flex;gap:6px}.v33-link-row input{flex:1;min-width:0;background:#061820;color:#fff;border:1px solid #174750;border-radius:10px;padding:9px}.v33-link-row button,.v33-actions button,.v33-member-actions button{border:1px solid #18515b;background:#0c3039;color:#fff;border-radius:11px;padding:9px}.v33-actions{display:grid;gap:7px}.v33-actions .danger,.v33-member-actions .danger{background:#4d1720}.v33-members{margin-top:14px}.v33-member{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #123740}.v33-member-main{display:flex;align-items:center;gap:8px;min-width:0}.v33-member-main small{display:block;color:#8fb3b6}.v33-member-actions{display:flex;gap:5px;flex-wrap:wrap}.v33-user-row{width:100%;display:grid;grid-template-columns:42px 1fr auto auto;gap:8px;align-items:center;padding:10px;background:#0a252d;border:1px solid #15434b;color:#fff;border-radius:12px;margin:4px 0;text-align:right}.v33-user-row span:first-child{width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center}.v33-user-row img{width:100%;height:100%;object-fit:cover}.v33-user-row small{color:#8fb3b6}.v33-setting{padding:12px;margin:8px 0;border:1px solid #16464e;border-radius:13px}.v33-setting label{display:block;padding:9px}.v33-request{display:flex;justify-content:space-between;gap:6px;align-items:center;padding:10px;border-bottom:1px solid #173c44}.v33-request button{border:1px solid #1a4d56;background:#0b3038;color:#fff;border-radius:9px;padding:8px}.v33-sheet label{display:block;margin:9px 0;color:#9bd1cf}.v33-sheet input,.v33-sheet textarea{width:100%;box-sizing:border-box;margin-top:5px;background:#061820;color:#fff;border:1px solid #16464e;border-radius:12px;padding:11px}.v33-sheet textarea{min-height:100px;resize:vertical}.v33-sheet .primary{width:100%;margin-top:10px;background:#00cfa8;color:#032019;border:0;border-radius:12px;padding:13px;font-weight:700}
+`;document.head.appendChild(s)})();
