@@ -2592,3 +2592,205 @@ init();
 (function V31CSS(){const s=document.createElement('style');s.id='v31Css';s.textContent=`
 .v31-wall-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:68vh;overflow:auto;padding:2px}.v31-wall-card{display:block;width:100%;padding:0;border:1px solid #16464e;background:#09242c;color:#fff;border-radius:13px;overflow:hidden;text-align:right}.v31-wall-card img,.v31-color-preview{display:block;width:100%;height:125px;object-fit:cover}.v31-wall-card b{display:block;padding:9px;font-size:12px}.v31-wall-actions{display:grid;gap:7px;margin-top:9px}.v31-wall-grid img{background:#07171e}.community-modal .community-actions{display:none!important}
 `;document.head.appendChild(s)})();
+
+/* ===== ComboApp V32 — final polish: wallpapers, story, communities, profile media, message actions ===== */
+(function V32(){
+  const q=id=>document.getElementById(id);
+  const esc32=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const toast32=m=>typeof window.toast==='function'?window.toast(m):console.log(m);
+  const cur32=()=>me?.id;
+
+  /* ---------- Notifications: one real toggle only ---------- */
+  function fixBell(){
+    const old=q('notifyBtn'); if(!old||old.dataset.v32==='1')return;
+    const b=old.cloneNode(true); old.replaceWith(b); b.dataset.v32='1';
+    b.onclick=async()=>{
+      const on=localStorage.getItem('combo_notifications')!=='off';
+      const next=!on;
+      localStorage.setItem('combo_notifications',next?'on':'off');
+      b.textContent=next?'🔔':'🔕'; b.classList.toggle('bell-off',!next);
+      if(next && 'Notification' in window && Notification.permission==='default'){
+        try{await Notification.requestPermission()}catch(_){ }
+      }
+      toast32(next?'تم تشغيل إشعارات البرنامج':'تم إيقاف إشعارات البرنامج');
+    };
+    const on=localStorage.getItem('combo_notifications')!=='off';
+    b.textContent=on?'🔔':'🔕';b.classList.toggle('bell-off',!on);
+  }
+
+  /* ---------- Profile save: upsert + explicit returned row ---------- */
+  function fixProfileSave(){
+    const old=q('saveProfileBtn');if(!old||old.dataset.v32==='1')return;
+    const b=old.cloneNode(true);old.replaceWith(b);b.dataset.v32='1';
+    b.onclick=async()=>{
+      const display_name=(q('profileName')?.value||'').trim();
+      const username=(q('profileUsername')?.value||'').trim().toLowerCase();
+      const phone=typeof window.normalizePhone==='function'?window.normalizePhone(q('profilePhone')?.value||''):(q('profilePhone')?.value||'').replace(/\D/g,'');
+      const bio=(q('profileBio')?.value||'').trim();
+      if(!display_name||!username)return toast32('الاسم واسم المستخدم مطلوبين');
+      if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast32('اسم المستخدم 3-24 حرفًا: إنجليزي وأرقام و _ و . فقط');
+      const uq=await sb.from('profiles').select('id').eq('username',username).neq('id',cur32()).maybeSingle();
+      if(uq.error)return toast32('تعذر التحقق من اسم المستخدم: '+uq.error.message);
+      if(uq.data)return toast32('اسم المستخدم مستخدم بالفعل — اختار اسمًا مختلفًا');
+      if(phone){
+        const pq=await sb.from('profiles').select('id').eq('phone',phone).neq('id',cur32()).maybeSingle();
+        if(pq.data)return toast32('رقم الهاتف مستخدم بالفعل');
+      }
+      const payload={id:cur32(),display_name,username,phone:phone||null,bio,last_seen:new Date().toISOString()};
+      const r=await sb.from('profiles').upsert(payload,{onConflict:'id'}).select('*').maybeSingle();
+      if(r.error)return toast32('تعذر حفظ البيانات: '+r.error.message);
+      if(!r.data)return toast32('تعذر حفظ البيانات: لم يتم تحديث الملف');
+      me={...me,...r.data};
+      if(typeof window.renderAvatar==='function')window.renderAvatar(window.me.avatar_url,display_name);
+      toast32('تم حفظ بيانات الملف الشخصي');
+    };
+  }
+
+  /* ---------- Wallpapers: all 20 images, absolute URLs, no broken previews ---------- */
+  const wall32=[
+    ['img01','غروب وجسر','wall_01.jpg'],['img02','أسد وغزال','wall_02.jpg'],['img03','ورد وهدية','wall_03.jpg'],['img04','Porsche','wall_04.jpg'],['img05','برج إيفل','wall_05.jpg'],
+    ['img06','سماء درامية','wall_06.jpg'],['img07','قمر وشجرة','wall_07.jpg'],['img08','آيات وأذكار','wall_08.jpg'],['img09','قط كيوت','wall_09.jpg'],['img10','One Piece','wall_10.jpg'],
+    ['img11','ساموراي والزهور','wall_11.jpg'],['img12','ألوان مكسورة','wall_12.jpg'],['img13','ستايل كلاسيكي','wall_13.jpg'],['img14','Focus on yourself','wall_14.jpg'],['img15','عيون بالأسود','wall_15.jpg'],
+    ['img16','Spider-Man','wall_16.jpg'],['img17','غوريلا','wall_17.jpg'],['img18','خلفية طريفة','wall_18.jpg'],['img19','أنمي','wall_19.jpg'],['img20','ستايل أبيض وأسود','wall_20.jpg']
+  ];
+  const wallUrl32=f=>new URL('assets/wallpapers_custom/'+f,location.href).href;
+  function applyWall32(){
+    const box=q('messagesBox');if(!box)return;
+    const v=localStorage.getItem('combo_wallpaper')||'0';
+    box.className='messages';box.style.backgroundImage='';box.style.backgroundSize='cover';box.style.backgroundPosition='center';box.style.backgroundRepeat='no-repeat';box.style.backgroundAttachment='scroll';
+    if(v==='custom'){const d=localStorage.getItem('combo_custom_wallpaper');if(d)box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${d}")`;return;}
+    const w=wall32.find(x=>x[0]===v);
+    if(w)box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${wallUrl32(w[2])}")`;
+    else {const cls=['','wall-dots','wall-green','wall-blue','wall-black','wall-pink','wall-magenta','wall-red','wall-purple','wall-gold','wall-cyan','wall-hearts'][v]||'';if(cls)box.classList.add(cls)}
+  }
+  function showWall32(){
+    const base=[['0','افتراضي'],['1','نقاط نيون'],['2','أخضر زجاجي'],['3','أزرق ليلي'],['4','أسود سادة'],['5','وردي ناعم'],['6','فوشيا'],['7','أحمر غامق'],['8','بنفسجي'],['9','ذهبي'],['10','سماوي'],['11','قلب ونقاط']];
+    const colors={'0':'#07171e','1':'radial-gradient(#00e6b044 1px,transparent 1px)','2':'linear-gradient(135deg,#062a27,#03161b)','3':'linear-gradient(135deg,#071b38,#031016)','4':'#000','5':'linear-gradient(135deg,#4d1e3b,#17101c)','6':'linear-gradient(135deg,#8a195f,#291028)','7':'linear-gradient(135deg,#5d101d,#17070b)','8':'linear-gradient(135deg,#40205d,#100a19)','9':'linear-gradient(135deg,#624b16,#171108)','10':'linear-gradient(135deg,#0b4d64,#06131b)','11':'radial-gradient(#ff4d7d33 2px,transparent 2px),radial-gradient(#00e6b033 2px,transparent 2px)'};
+    const cards=[...base.map(x=>`<button class="v32-wall-card" data-v32-wall="${x[0]}"><span style="background:${colors[x[0]]}"></span><b>${esc32(x[1])}</b></button>`),...wall32.map(x=>`<button class="v32-wall-card" data-v32-wall="${x[0]}"><img src="${wallUrl32(x[2])}" alt="${esc32(x[1])}" loading="eager"><b>${esc32(x[1])}</b></button>`)].join('');
+    if(typeof window.openSimple!=='function')return;
+    window.openSimple('خلفيات الدردشة',`<div class="v32-wall-grid">${cards}</div><div class="v32-wall-actions"><button id="v32WallGallery" class="choice-btn">🖼️ اختيار صورة من المعرض</button><button id="v32WallReset" class="choice-btn">↺ الخلفية الافتراضية</button><input id="v32WallInput" type="file" accept="image/*" hidden></div>`,'إغلاق');
+    setTimeout(()=>{
+      document.querySelectorAll('[data-v32-wall]').forEach(b=>b.onclick=()=>{localStorage.setItem('combo_wallpaper',b.dataset.v32Wall);localStorage.removeItem('combo_custom_wallpaper');applyWall32();window.closeSimple?.();toast32('تم اختيار الخلفية')});
+      q('v32WallGallery')?.addEventListener('click',()=>q('v32WallInput')?.click());
+      q('v32WallReset')?.addEventListener('click',()=>{localStorage.setItem('combo_wallpaper','0');localStorage.removeItem('combo_custom_wallpaper');applyWall32();window.closeSimple?.();toast32('تمت إعادة الخلفية الافتراضية')});
+      q('v32WallInput')?.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{localStorage.setItem('combo_custom_wallpaper',r.result);localStorage.setItem('combo_wallpaper','custom');applyWall32();window.closeSimple?.();toast32('تم وضع الصورة كخلفية')};r.readAsDataURL(f)});
+    },50);
+  }
+
+  /* ---------- Story composer: same background behind text + colors above tools ---------- */
+  function fixStory(){
+    const canvas=q('storyCanvas');if(canvas){
+      canvas.style.setProperty('background','#0a1820','important');
+      const ta=q('storyText');if(ta){ta.style.background='transparent';ta.style.width='100%';ta.style.height='100%';ta.style.padding='40px 22px';ta.style.boxSizing='border-box'}
+      canvas.addEventListener('click',e=>{const dot=e.target.closest?.('.color-dot');if(dot)canvas.style.background=dot.dataset.color},true);
+    }
+    const colors=document.querySelector('.story-colors'),tools=document.querySelector('.story-bottom-tools');
+    if(colors&&tools&&tools.parentNode)tools.parentNode.insertBefore(colors,tools);
+    if(colors)colors.classList.add('v32-story-colors');
+  }
+
+  /* ---------- Communities: clean chat bar + working profile ---------- */
+  async function openCommunity32(id){
+    const r=await sb.from('communities').select('*').eq('id',id).maybeSingle();const c=r.data;if(!c)return toast32('تعذر فتح الجروب أو القناة');
+    let modal=q('communityChatModal');if(!modal){modal=document.createElement('div');modal.id='communityChatModal';modal.className='modal hidden';document.body.appendChild(modal)}
+    modal.classList.remove('hidden');
+    modal.innerHTML=`<div class="community-modal v32-community-modal"><header class="community-head"><button id="v32CommClose" class="icon-btn">✕</button><button id="v32CommTitle" class="v29-comm-title"><span class="community-icon">${c.avatar_url?`<img src="${esc32(c.avatar_url)}">`:c.kind==='channel'?'📢':'👥'}</span><span><strong>${esc32(c.name)}</strong><small>${c.kind==='channel'?'قناة':'جروب'}</small></span></button></header><div id="communityMessages" class="community-messages"></div><div id="v32CommRich" class="v29-rich hidden"></div><div class="v32-compose"><button id="v32CommEmoji">😊</button><button id="v32CommGif">GIF</button><button id="v32CommAttach">＋</button><input id="communityMessageInput" placeholder="اكتب رسالة..."><button id="communitySend">➤</button></div></div>`;
+    q('v32CommClose').onclick=()=>modal.classList.add('hidden');
+    q('v32CommTitle').onclick=()=>openCommunityProfile32(c);
+    q('v32CommEmoji').onclick=()=>communityRich32(c,'emoji');q('v32CommGif').onclick=()=>communityRich32(c,'gif');q('v32CommAttach').onclick=()=>communityFile32(c);q('communitySend').onclick=()=>sendCommunity32(c);q('communityMessageInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendCommunity32(c)}};
+    await loadCommunity32(c);
+  }
+  async function loadCommunity32(c){
+    const box=q('communityMessages');if(!box)return;const r=await sb.from('community_messages').select('*').eq('community_id',c.id).order('created_at');if(r.error){box.innerHTML='<div class="community-empty">تعذر تحميل الرسائل.</div>';return}
+    const ids=[...new Set((r.data||[]).map(x=>x.sender_id).filter(Boolean))];let names={};if(ids.length){const p=await sb.from('profiles').select('id,display_name,username').in('id',ids);(p.data||[]).forEach(x=>names[x.id]=x.display_name||x.username||'مستخدم')}
+    box.innerHTML=(r.data||[]).map(m=>{let body='';if(m.media_path){const u=sb.storage.from('community-media').getPublicUrl(m.media_path).data.publicUrl;body=m.media_mime?.startsWith('image/')?`<img class="v32-comm-media" src="${esc32(u)}">`:m.media_mime?.startsWith('video/')?`<video class="v32-comm-media" src="${esc32(u)}" controls playsinline></video>`:m.media_mime?.startsWith('audio/')?`<audio src="${esc32(u)}" controls></audio>`:`<a href="${esc32(u)}" target="_blank" rel="noopener">📎 ${esc32((m.media_path||'').split('/').pop())}</a>`}else if(/^__combo_gif__:\d+$/.test(m.content||'')){const i=Number(m.content.split(':')[1]);const src=(typeof GIFS!=='undefined'?GIFS[i]:'');body=`<img class="v32-comm-media" src="${esc32(src)}" alt="GIF">`}else body=`<div>${esc32(m.content||'')}</div>`;return `<div class="community-message ${m.sender_id===cur32()?'mine':''}">${body}<small>${esc32(names[m.sender_id]||'مستخدم')} • ${esc32(window.fmt?.(m.created_at)||'')}</small></div>`}).join('')||'<div class="community-empty">ابدأ أول رسالة هنا.</div>';box.scrollTop=box.scrollHeight;
+  }
+  async function sendCommunity32(c){if(c.kind==='channel'&&c.owner_id!==cur32())return toast32('النشر في القناة متاح للمالك أو المشرفين فقط');const i=q('communityMessageInput'),text=(i?.value||'').trim();if(!text)return;const r=await sb.from('community_messages').insert({community_id:c.id,sender_id:cur32(),content:text});if(r.error)return toast32('تعذر إرسال الرسالة: '+r.error.message);i.value='';q('v32CommRich')?.classList.add('hidden');await loadCommunity32(c)}
+  function communityRich32(c,tab){const p=q('v32CommRich');if(!p)return;p.classList.remove('hidden');if(tab==='emoji'){const es='😀 😃 😂 🤣 😊 😍 🥰 😎 😢 😡 😱 👍 👎 👏 🙏 ❤️ 🔥 🎉 ✨ 💚 🤝 💯 👋 😭 😁 😘 😇 🤩 🥳'.split(' ');p.innerHTML=`<div class="v29-emoji-grid">${es.map(x=>`<button>${x}</button>`).join('')}</div>`;p.querySelectorAll('button').forEach(b=>b.onclick=()=>{q('communityMessageInput').value+=(q('communityMessageInput').value?' ':'')+b.textContent;q('communityMessageInput').focus()})}else{const gs=typeof GIFS!=='undefined'?GIFS:[];p.innerHTML=`<div class="v29-gif-grid">${gs.map((s,i)=>`<button data-g32="${i}"><img src="${esc32(s)}"><small>GIF ${i+1}</small></button>`).join('')}</div>`;p.querySelectorAll('[data-g32]').forEach(b=>b.onclick=async()=>{const r=await sb.from('community_messages').insert({community_id:c.id,sender_id:cur32(),content:`__combo_gif__:${b.dataset.g32}`});if(r.error)return toast32('تعذر إرسال GIF');p.classList.add('hidden');await loadCommunity32(c)})}}
+  function communityFile32(c){let i=q('v32CommunityFile');if(!i){i=document.createElement('input');i.id='v32CommunityFile';i.type='file';i.accept='*/*';i.multiple=true;i.hidden=true;document.body.appendChild(i);i.onchange=async e=>{for(const f of [...(e.target.files||[])]){const path=`${cur32()}/${c.id}/${crypto.randomUUID()}-${String(f.name||'file').replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from('community-media').upload(path,f,{upsert:false,contentType:f.type||'application/octet-stream'});if(up.error){toast32('تعذر رفع '+f.name);continue}const z=await sb.from('community_messages').insert({community_id:c.id,sender_id:cur32(),content:'',media_path:path,media_mime:f.type||'application/octet-stream'});if(z.error)toast32('تعذر إرسال '+f.name)}i.value='';await loadCommunity32(c)}}i.click()}
+
+  async function openCommunityProfile32(c0){
+    const r=await sb.from('communities').select('*').eq('id',c0.id).maybeSingle();const c=r.data||c0;if(!c)return;
+    let code=c.invite_code;if(!code&&c.owner_id===cur32()){const z=await sb.rpc('combo_v28_ensure_invite',{p_community_id:c.id});if(!z.error){code=z.data;c.invite_code=code}}
+    const link=code?APP_BASE_URL+'?community='+encodeURIComponent(code):'';
+    let modal=q('v32CommunityProfile');if(!modal){modal=document.createElement('div');modal.id='v32CommunityProfile';modal.className='modal hidden';document.body.appendChild(modal)}modal.classList.remove('hidden');
+    modal.innerHTML=`<div class="v29-profile-sheet v32-community-profile"><button id="v32CpClose" class="icon-btn">✕</button><div class="v32-community-avatar-wrap"><div class="v29-cp-avatar">${c.avatar_url?`<img src="${esc32(c.avatar_url)}">`:c.kind==='channel'?'📢':'👥'}</div>${c.owner_id===cur32()?'<button id="v32PhotoMenu" class="choice-btn">🖼️ إضافة / تغيير / حذف صورة</button>':''}</div><h2>${esc32(c.name)}</h2><p>${esc32(c.description||'لا توجد نبذة')}</p><div class="v32-owner">👑 المالك: ${c.owner_id===cur32()?'أنت':'مالك المجموعة'}</div><div class="v29-link"><input readonly value="${esc32(link)}"><button id="v32CopyLink">نسخ</button><button id="v32ShareLink">مشاركة</button></div><div class="v29-cp-actions"><button id="v32AddMember">👤➕ إضافة عضو</button><button id="v32Media">🖼️ الوسائط والملفات</button><button id="v32Report">⚠️ إبلاغ عن المجموعة</button>${c.owner_id===cur32()?'<button id="v32Settings">⚙️ إعدادات المجموعة</button><button id="v32Requests">📥 طلبات الانضمام</button><button id="v32Delete" class="danger">🗑️ حذف المجموعة/القناة</button>':'<button id="v32Leave">🚪 الخروج من المجموعة</button>'}</div><div id="v32Members"></div></div>`;
+    q('v32CpClose').onclick=()=>modal.classList.add('hidden');q('v32CopyLink').onclick=async()=>{if(!link)return toast32('رابط الدعوة غير متاح');try{await navigator.clipboard.writeText(link);toast32('تم نسخ الرابط')}catch(_){prompt('رابط الدعوة:',link)}};q('v32ShareLink').onclick=async()=>{if(!link)return toast32('رابط الدعوة غير متاح');if(navigator.share)try{await navigator.share({title:c.name,text:'انضم إلى '+c.name,url:link})}catch(_){}else q('v32CopyLink').click()};q('v32AddMember').onclick=async()=>{if(!window.openCommunityProfileV25)return toast32('تعذر فتح إضافة الأعضاء');await window.openCommunityProfileV25(c);setTimeout(()=>q('v29AddMember')?.click(),80)};q('v32Media').onclick=async()=>{if(!window.openCommunityProfileV25)return;await window.openCommunityProfileV25(c);setTimeout(()=>q('v29Gallery')?.click(),80)};q('v32Settings')?.addEventListener('click',async()=>{if(!window.openCommunityProfileV25)return;await window.openCommunityProfileV25(c);setTimeout(()=>q('v29Settings')?.click(),80)});q('v32Requests')?.addEventListener('click',async()=>{if(!window.openCommunityProfileV25)return;await window.openCommunityProfileV25(c);setTimeout(()=>q('v29Requests')?.click(),80)});
+    q('v32PhotoMenu')?.addEventListener('click',()=>communityPhotoMenu32(c));q('v32Report').onclick=()=>{const reason=prompt('سبب الإبلاغ:','إبلاغ عن المجموعة/القناة')||'إبلاغ';sb.from('community_reports').insert({community_id:c.id,reporter_id:cur32(),reason}).then(x=>toast32(x.error?'تعذر إرسال البلاغ':'تم إرسال البلاغ'))};
+    q('v32Delete')?.addEventListener('click',async()=>{if(!confirm('حذف المجموعة/القناة نهائيًا؟'))return;const z=await sb.from('communities').delete().eq('id',c.id).eq('owner_id',cur32());if(z.error)return toast32(z.error.message);modal.classList.add('hidden');q('communityChatModal')?.classList.add('hidden');window.loadCommunities?.();toast32('تم حذف المجموعة')});
+    q('v32Leave')?.addEventListener('click',async()=>{const z=await sb.rpc('combo_v25_leave_community',{p_community_id:c.id});if(z.error)return toast32(z.error.message);modal.classList.add('hidden');q('communityChatModal')?.classList.add('hidden');window.loadCommunities?.();toast32('تم الخروج من المجموعة')});
+    // Show members/roles from the existing live implementation underneath.
+    try{const mr=await sb.rpc('combo_v25_get_community_members',{p_community_id:c.id});if(!mr.error){q('v32Members').innerHTML='<h3>الأعضاء</h3>'+(mr.data||[]).map(m=>`<div class="v29-member"><span><strong>${esc32(m.display_name||m.username||'مستخدم')}</strong> ${m.role==='owner'?'👑':m.role==='admin'?'🛡️':''}</span>${c.owner_id===cur32()&&m.user_id!==cur32()?`<span>${m.role==='admin'?'مشرف':'عضو'}</span>`:''}</div>`).join('')}}catch(_){ }
+  }
+  async function communityPhotoMenu32(c){
+    const pick=confirm('اضغط «موافق» لاختيار صورة جديدة للجروب، أو «إلغاء» لحذف الصورة الحالية.');
+    if(!pick){const z=await sb.from('communities').update({avatar_url:null}).eq('id',c.id).eq('owner_id',cur32());if(z.error)return toast32('تعذر حذف صورة المجموعة');toast32('تم حذف صورة المجموعة');openCommunityProfile32(c);return}
+    let i=q('v32CommunityPhoto');if(!i){i=document.createElement('input');i.type='file';i.id='v32CommunityPhoto';i.accept='image/*';i.hidden=true;document.body.appendChild(i);i.onchange=async e=>{const f=e.target.files?.[0];i.value='';if(!f)return;const path=`${cur32()}/${c.id}/avatar-${crypto.randomUUID()}-${String(f.name).replace(/[^a-zA-Z0-9._-]/g,'_')}`;const up=await sb.storage.from('community-media').upload(path,f,{upsert:false,contentType:f.type});if(up.error)return toast32('تعذر رفع صورة المجموعة: '+up.error.message);const pub=sb.storage.from('community-media').getPublicUrl(path).data.publicUrl;const z=await sb.from('communities').update({avatar_url:pub}).eq('id',c.id).eq('owner_id',cur32());if(z.error)return toast32('تعذر حفظ صورة المجموعة: '+z.error.message);toast32('تم تغيير صورة المجموعة');openCommunityProfile32({...c,avatar_url:pub})}}i.click();
+  }
+
+  /* ---------- Profile media: one gallery, delete images/videos, choose next main image ---------- */
+  async function mediaRows32(){
+    const rows=[];
+    const p=await sb.from('profiles').select('avatar_url,display_name').eq('id',cur32()).maybeSingle();if(p.data?.avatar_url)rows.push({kind:'image',url:p.data.avatar_url,main:true,label:'الصورة الرئيسية'});
+    const r=await sb.from('profile_media').select('*').eq('user_id',cur32()).order('created_at',{ascending:false});
+    if(!r.error)for(const x of (r.data||[])){rows.push({id:x.id,kind:x.media_type==='video'?'video':'image',path:x.media_path,url:sb.storage.from('avatars').getPublicUrl(x.media_path).data.publicUrl,label:x.media_type==='video'?'فيديو':'صورة'})}
+    const local=(()=>{try{return JSON.parse(localStorage.getItem(`combo_profile_media_${cur32()}`)||'[]')}catch(_){return[]}})();
+    for(const x of local)if(x?.url&&!rows.some(y=>y.path===x.media_path))rows.push({kind:x.media_type==='video'?'video':'image',path:x.media_path,url:x.url,label:x.media_type==='video'?'فيديو':'صورة',local:true});
+    return rows;
+  }
+  async function uploadProfileMedia32(files){
+    let firstImage=null;
+    for(const f of [...files]){
+      if(!/^image\/|^video\//i.test(f.type))continue;
+      const path=`${cur32()}/profile-media/${crypto.randomUUID()}-${String(f.name).replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+      const up=await sb.storage.from('avatars').upload(path,f,{upsert:false,contentType:f.type});if(up.error){toast32('تعذر رفع '+f.name+': '+up.error.message);continue}
+      const pub=sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+      const ins=await sb.from('profile_media').insert({user_id:cur32(),media_type:f.type.startsWith('video/')?'video':'image',media_path:path});
+      if(ins.error){const key=`combo_profile_media_${cur32()}`;let a=[];try{a=JSON.parse(localStorage.getItem(key)||'[]')}catch(_){}a.push({media_type:f.type.startsWith('video/')?'video':'image',media_path:path,url:pub});localStorage.setItem(key,JSON.stringify(a))}
+      if(!firstImage&&f.type.startsWith('image/'))firstImage=pub;
+    }
+    const p=await sb.from('profiles').select('avatar_url').eq('id',cur32()).maybeSingle();
+    if(!p.data?.avatar_url&&firstImage){const z=await sb.from('profiles').update({avatar_url:firstImage}).eq('id',cur32());if(!z.error){me={...me,avatar_url:firstImage};window.renderAvatar?.(firstImage,window.me.display_name)}}
+    toast32('تمت إضافة الوسائط للملف الشخصي');openProfileGallery32();
+  }
+  async function deleteProfileMedia32(x){
+    if(x.main){
+      const all=await mediaRows32();const next=all.find(y=>!y.main&&y.kind==='image');const z=await sb.from('profiles').update({avatar_url:next?.url||null}).eq('id',cur32());if(z.error)return toast32('تعذر حذف الصورة الرئيسية: '+z.error.message);me={...me,avatar_url:next?.url||null};window.renderAvatar?.(next?.url||null,window.me.display_name);toast32(next?'تم حذف الصورة الرئيسية وتعيين الصورة التالية':'تم حذف الصورة الرئيسية');return openProfileGallery32();
+    }
+    if(x.id){const d=await sb.from('profile_media').delete().eq('id',x.id).eq('user_id',cur32());if(d.error)return toast32('تعذر حذف الوسائط: '+d.error.message)}
+    if(x.path)await sb.storage.from('avatars').remove([x.path]);
+    const key=`combo_profile_media_${cur32()}`;try{const a=JSON.parse(localStorage.getItem(key)||'[]');localStorage.setItem(key,JSON.stringify(a.filter(y=>y.media_path!==x.path)))}catch(_){ }
+    toast32('تم حذف الوسائط');openProfileGallery32();
+  }
+  async function openProfileGallery32(){
+    const data=await mediaRows32();let m=q('v32ProfileGallery');if(!m){m=document.createElement('div');m.id='v32ProfileGallery';m.className='modal hidden';document.body.appendChild(m)}m.classList.remove('hidden');
+    let idx=0;
+    const render=()=>{const x=data[idx];m.innerHTML=`<div class="v32-gallery-sheet"><button id="v32PgClose" class="icon-btn">✕</button><div class="v32-gallery-main">${x?(x.kind==='video'?`<video src="${esc32(x.url)}" controls autoplay playsinline></video>`:`<img src="${esc32(x.url)}">`):'<div class="muted">مفيش صور أو فيديوهات</div>'}</div><div class="v32-gallery-info">${x?`${idx+1} / ${data.length} · ${esc32(x.label||'صورة')}`:''}</div><div class="v32-gallery-thumbs">${data.map((z,i)=>`<button data-v32-idx="${i}" class="${i===idx?'active':''}">${z.kind==='video'?`<video src="${esc32(z.url)}" muted></video>`:`<img src="${esc32(z.url)}">`}</button>`).join('')}</div><div class="v32-gallery-actions">${x?`<button id="v32PgDelete" class="danger">🗑️ حذف</button>`:''}<button id="v32PgAdd">＋ إضافة</button></div></div>`;q('v32PgClose').onclick=()=>m.classList.add('hidden');q('v32PgDelete')?.addEventListener('click',()=>deleteProfileMedia32(x));q('v32PgAdd').onclick=()=>q('v32PgInput')?.click();m.querySelectorAll('[data-v32-idx]').forEach(b=>b.onclick=()=>{idx=Number(b.dataset.v32Idx);render()})};
+    render();let inp=q('v32PgInput');if(!inp){inp=document.createElement('input');inp.id='v32PgInput';inp.type='file';inp.accept='image/*,video/*';inp.multiple=true;inp.hidden=true;document.body.appendChild(inp);inp.onchange=async e=>{if(e.target.files?.length)await uploadProfileMedia32(e.target.files);e.target.value=''}}
+  }
+  function bindProfileAvatar32(){const old=q('avatarActionBtn');if(!old||old.dataset.v32==='1')return;const b=old.cloneNode(true);old.replaceWith(b);b.dataset.v32='1';b.onclick=e=>{e.preventDefault();e.stopPropagation();openProfileGallery32()}}
+
+  /* ---------- Message actions: native inline edit, delete-myself, delete-everyone ---------- */
+  function editMessageInline32(m,modal){
+    modal.innerHTML=`<div class="v32-edit-sheet"><h3>تعديل الرسالة</h3><div class="v32-edit-row"><input id="v32EditInput" value="${esc32(m.content||'')}" placeholder="عدل رسالتك..."><button id="v32EditSend">➤</button></div><button id="v32EditCancel" class="link-btn">إلغاء</button></div>`;q('v32EditCancel').onclick=()=>modal.classList.add('hidden');q('v32EditSend').onclick=async()=>{const val=(q('v32EditInput').value||'').trim();if(!val)return toast32('الرسالة لا يمكن أن تكون فارغة');const r=await sb.from('messages').update({content:val,edited_at:new Date().toISOString()}).eq('id',m.id).eq('sender_id',cur32());if(r.error)return toast32('تعذر تعديل الرسالة: '+r.error.message);modal.classList.add('hidden');await window.loadMessages();await window.loadChats?.();toast32('تم تعديل الرسالة')};setTimeout(()=>q('v32EditInput')?.focus(),30);
+  }
+  function messageActions32(m){
+    let modal=q('v32MsgActions');if(!modal){modal=document.createElement('div');modal.id='v32MsgActions';modal.className='modal hidden';document.body.appendChild(modal)}modal.classList.remove('hidden');const mine=m.sender_id===cur32();modal.innerHTML=`<div class="v29-sheet"><h3>إجراءات الرسالة</h3>${mine&&!m.deleted_for_everyone&&!m.media_path&&!/^__combo_/.test(m.content||'')?'<button id="v32Edit">✏️ تعديل الرسالة</button>':''}${mine&&!m.deleted_for_everyone?'<button id="v32DelAll" class="danger">🗑️ حذف لكلا الطرفين</button>':''}<button id="v32DelMe">🗑️ حذف لدي فقط</button>${!mine&&!m.deleted_for_everyone?'<button id="v32Report" class="danger">⚠️ إبلاغ عن الرسالة</button>':''}<button id="v32MsgCancel">إلغاء</button></div>`;q('v32MsgCancel').onclick=()=>modal.classList.add('hidden');q('v32Edit')?.addEventListener('click',()=>editMessageInline32(m,modal));q('v32DelMe').onclick=async()=>{const r=await sb.from('message_user_deletions').upsert({message_id:m.id,user_id:cur32()},{onConflict:'message_id,user_id'});if(r.error)return toast32('تعذر حذف الرسالة لديك');modal.classList.add('hidden');await window.loadMessages();toast32('تم حذف الرسالة لديك فقط')};q('v32DelAll')?.addEventListener('click',async()=>{const r=await sb.rpc('combo_v28_delete_message_everyone',{p_message_id:m.id});if(r.error)return toast32(r.error.message);modal.classList.add('hidden');await window.loadMessages();toast32('تم حذف الرسالة لدى الطرفين')});q('v32Report')?.addEventListener('click',async()=>{const reason=prompt('سبب الإبلاغ:','إبلاغ عن رسالة غير مناسبة')||'إبلاغ عن الرسالة';const r=await sb.from('reports').insert({reporter_id:cur32(),reported_user_id:m.sender_id,reason:`${reason} | message_id=${m.id}`});if(r.error)return toast32('تعذر إرسال البلاغ');modal.classList.add('hidden');toast32('تم إرسال البلاغ')});
+  }
+  async function rebindMessages32(){
+    document.querySelectorAll('#messagesBox .bubble[data-message-id]').forEach(el=>{const clone=el.cloneNode(true);el.replaceWith(clone);let timer;const open=()=>{const id=clone.dataset.messageId;sb.from('messages').select('*').eq('id',id).maybeSingle().then(r=>{if(r.data)messageActions32(r.data)})};clone.onclick=e=>{if(!e.target.closest('img,video,audio,a'))open()};clone.oncontextmenu=e=>{e.preventDefault();open()};clone.ontouchstart=()=>{timer=setTimeout(open,520)};clone.ontouchend=()=>clearTimeout(timer);clone.ontouchmove=()=>clearTimeout(timer)});
+  }
+  const oldLoad32=window.loadMessages;
+  if(typeof oldLoad32==='function')window.loadMessages=async function(){const r=await oldLoad32.apply(this,arguments);setTimeout(()=>{rebindMessages32();applyWall32()},0);return r};
+
+  window.openCommunity=openCommunity32;
+  window.showWallpaper=showWall32;window.applyChatWallpaper=applyWall32;
+  window.openProfileGallery32=openProfileGallery32;
+  window.__comboV32Ready=true;
+  const boot32=()=>{fixBell();fixProfileSave();fixStory();bindProfileAvatar32();applyWall32()};
+  setTimeout(boot32,120);setTimeout(boot32,700);setTimeout(boot32,1800);
+})();
+
+(function V32CSS(){const s=document.createElement('style');s.id='v32Css';s.textContent=`
+.v32-wall-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:70vh;overflow:auto}.v32-wall-card{display:flex;flex-direction:column;padding:0;border:1px solid #16464e;background:#09242c;color:#fff;border-radius:13px;overflow:hidden;text-align:right;min-height:145px}.v32-wall-card img,.v32-wall-card span{display:block;width:100%;height:112px;object-fit:cover}.v32-wall-card b{display:block;padding:9px;font-size:12px}.v32-wall-actions{display:grid;gap:7px;margin-top:9px}.v32-story-colors{order:0}.story-composer .story-canvas{background:#0a1820!important}.story-composer .story-canvas.text-mode textarea{background:transparent!important;border:0!important;box-shadow:none!important;width:100%!important;height:100%!important}.v32-compose{display:flex;gap:6px;align-items:center;padding:9px;background:#071d24;border-top:1px solid #16434a}.v32-compose button{border:0;background:#0d2c34;color:#eafffa;border-radius:13px;min-width:42px;height:42px}.v32-compose button:last-child{background:#00cfa8;color:#032019;font-size:20px}.v32-compose input{flex:1;min-width:0;border:1px solid #164a52;background:#06151b;color:#fff;border-radius:16px;padding:11px 13px;outline:0}.v32-community-profile{max-height:94vh;overflow:auto}.v32-owner{padding:10px 12px;background:#0b242c;border-radius:12px;margin:8px 0;color:#9ee9d9}.v32-community-avatar-wrap{text-align:center}.v32-community-avatar-wrap .v29-cp-avatar{margin-bottom:7px}.v32-gallery-sheet{width:min(760px,100vw);height:100%;background:#02090d;color:#fff;display:flex;flex-direction:column;padding:14px;box-sizing:border-box}.v32-gallery-main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}.v32-gallery-main img,.v32-gallery-main video{max-width:100%;max-height:72vh;object-fit:contain;border-radius:14px}.v32-gallery-info{text-align:center;padding:8px}.v32-gallery-thumbs{display:flex;gap:7px;overflow:auto;padding:6px}.v32-gallery-thumbs button{width:64px;height:64px;flex:0 0 64px;padding:0;border:2px solid transparent;background:#10242b;border-radius:9px;overflow:hidden}.v32-gallery-thumbs button.active{border-color:#00e6b0}.v32-gallery-thumbs img,.v32-gallery-thumbs video{width:100%;height:100%;object-fit:cover}.v32-gallery-actions{display:flex;gap:8px;padding-top:8px}.v32-gallery-actions button{flex:1;border:1px solid #17434a;background:#09242c;color:#fff;border-radius:12px;padding:11px}.v32-gallery-actions .danger{background:#4b1820}.v32-edit-sheet{width:min(520px,94vw);background:#071820;border-radius:22px;padding:16px}.v32-edit-row{display:flex;gap:7px;align-items:center}.v32-edit-row input{flex:1;background:#06151b;border:1px solid #164a52;color:#fff;border-radius:15px;padding:13px;outline:0}.v32-edit-row button{width:48px;height:48px;border:0;border-radius:14px;background:#00cfa8;color:#032019;font-size:20px}.v32-msg-actions{}@media(max-width:480px){.v32-wall-grid{grid-template-columns:repeat(2,1fr)}}
+`;document.head.appendChild(s)})();
