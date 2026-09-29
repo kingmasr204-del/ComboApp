@@ -1219,3 +1219,179 @@ document.addEventListener('click',e=>{
 
 // Start only after every function and UI patch above has been loaded.
 init();
+
+
+/* ===== ComboApp V21 CORE RESTORE: restore functions accidentally omitted in V20 ===== */
+
+
+async function addActiveContact(){closeChatMenu();if(!activeChat)return;const list=readSavedContacts();const phone=activeChat.user.phone;if(!phone)return toast("الجهة دي مش مسجل لها رقم");if(!list.some(x=>x.phone===phone))list.push({name:activeChat.user.display_name,phone});saveContacts(list);toast("تمت إضافة جهة الاتصال")}
+
+
+async function archiveChat(){closeChatMenu();if(!activeChat)return;await setChatSetting({archived:true});const id=activeChat.conversation.id;closeChat();await loadChats();toast("تم نقل المحادثة للأرشيف")}
+
+
+function avatarActions(){const has=!!me.avatar_url;const a=prompt(has?"اكتب 1 لإضافة/تغيير الصورة أو 2 لحذفها":"اكتب 1 لإضافة صورة");if(a==="1")$("avatarFileInput").click();if(a==="2"&&has)removeAvatar()}
+
+
+async function changePassword(){const p=prompt("اكتب كلمة السر الجديدة (6 أحرف على الأقل):");if(!p||p.length<6)return;const {error}=await sb.auth.updateUser({password:p});toast(error?error.message:"تم تغيير كلمة السر")}
+
+async function checkAppLock(){if(localStorage.getItem("combo_app_lock"))$("lockScreen").classList.remove("hidden")}
+
+
+function closeChat(){$("chatModal").classList.add("hidden");activeChat=null;$("emojiPanel").classList.add("hidden")}
+
+
+function closeChatMenu(){$("chatMenuModal").classList.add("hidden")}
+
+function closeContacts(){$("contactsModal").classList.add("hidden")}
+
+
+function closeGlobalSettings(){$("globalSettingsModal").classList.add("hidden")}
+
+
+function closePin(){$("pinModal").classList.add("hidden");$("pinInput").value="";pinMode=null;window._lockedSetting=null}
+
+function closeSimple(){$("simpleModal").classList.add("hidden")}
+
+
+function closeStoryComposer(){$("storyComposer").classList.add("hidden");if(storyObjectUrl)URL.revokeObjectURL(storyObjectUrl);storyObjectUrl=null;storyFile=null}
+
+
+async function confirmPin(){const pin=$("pinInput").value.trim();if(!/^\d{4,8}$/.test(pin))return toast("الرمز من 4 إلى 8 أرقام");const h=await sha(pin);if(pinMode==="chat"){await setChatSetting({locked:true,pin_hash:h});toast("تم قفل المحادثة");closePin()}else if(pinMode==="unlockChat"){if(h!==window._lockedSetting.pin_hash)return toast("رمز القفل غير صحيح");const c=pendingLockedConversation;closePin();pendingLockedConversation=null;if(c){const otherId=c.user1_id===me.id?c.user2_id:c.user1_id;const {data:u}=await sb.from("profiles").select("*").eq("id",otherId).single();activeChat={conversation:c,user:u};$("chatTitle").textContent=u?.display_name||"محادثة";setChatAvatar(u);$("chatModal").classList.remove("hidden");await loadMessages();await markRead()}}else if(pinMode==="app"){setComboSetting("app_lock",h);toast("تم تفعيل قفل التطبيق");closePin();$("appLockState").textContent="مفعل"}}
+
+
+async function deleteAccount(){if(!confirm("حذف الحساب نهائيًا؟ لا يمكن التراجع عن ذلك."))return;const {error}=await sb.rpc("delete_my_account");if(error)return toast("الحذف يحتاج تشغيل SQL الأخير في Supabase");await sb.auth.signOut();location.reload()}
+
+
+function getFriendIds(){return sb.from("conversations").select("user1_id,user2_id").or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`).then(async({data:c})=>{const ids=new Set([me.id]);for(const x of c||[])ids.add(x.user1_id===me.id?x.user2_id:x.user1_id);for(const x of readSavedContacts()){const {data:p}=await sb.from("profiles").select("id").eq("phone",x.phone).maybeSingle();if(p)ids.add(p.id)}return[...ids]})}
+
+
+async function getSettings(){const {data}=await sb.from("conversation_settings").select("conversation_id,archived,locked,deleted").eq("user_id",me.id);return Object.fromEntries((data||[]).map(x=>[x.conversation_id,x]))}
+
+
+function inviteContact(phone){const text=encodeURIComponent("تعالى على ComboApp وتواصل معايا بحرية 👑💚 "+APP_BASE_URL);location.href=`sms:${phone}?body=${text}`}
+
+ async function loadArchived(){return renderChats(true)}
+
+
+async function loadChats(){return renderChats(false)}
+
+
+async function loadCloudContacts(){if(!me?.id)return;const r=await sb.from("user_contacts").select("name,phone,created_at").eq("user_id",me.id).order("created_at",{ascending:false});if(!r.error){localStorage.setItem("combo_contacts",JSON.stringify(r.data||[]))}}
+
+
+async function loadProfile(){$("profileName").value=me.display_name||"";$("profileUsername").value=me.username||"";$("profilePhone").value=me.phone||"";$("profileBio").value=me.bio||"";renderAvatar(me.avatar_url,me.display_name)}
+
+
+async function loadSarhnyInbox(){const {data,error}=await sb.from("sarhny_messages").select("id,content,created_at").eq("recipient_id",me.id).order("created_at",{ascending:false});if(error){$("sarhnyInbox").innerHTML="<div class='muted'>تعذر تحميل الرسائل السرية.</div>";return}$("sarhnyInbox").innerHTML=(data||[]).map(x=>`<div class="sarhny-item"><div class="avatar">♡</div><div class="chat-info"><strong>رسالة سرية</strong><small>${esc(x.content)}</small></div><span class="time">${fmt(x.created_at)}</span></div>`).join("")||"<div class='empty-card'>لسه موصلكش رسائل سرية.</div>"}
+
+
+async function lockChat(){closeChatMenu();if(!activeChat)return;pinMode="chat";$("pinTitle").textContent="قفل المحادثة";$("pinConfirmBtn").textContent="تأكيد";$("pinModal").classList.remove("hidden")}
+
+
+async function markDelivered(){if(!activeChat)return;await sb.from("messages").update({delivered_at:new Date().toISOString()}).eq("conversation_id",activeChat.conversation.id).eq("receiver_id",me.id).is("delivered_at",null)}
+
+
+async function markRead(){if(!activeChat)return;const now=new Date().toISOString();await sb.from("messages").update({delivered_at:now,read_at:now}).eq("conversation_id",activeChat.conversation.id).eq("receiver_id",me.id).is("read_at",null);await loadMessages()}
+
+
+function normalizePhone(v=""){let n=String(v).replace(/[^0-9+]/g,"");if(n.startsWith("00"))n="+"+n.slice(2);if(n.startsWith("+20"))return"20"+n.slice(3);if(n.startsWith("20")&&n.length>=12)return n;if(n.startsWith("0"))return"20"+n.slice(1);return n.replace(/\D/g,"")}
+
+
+function notificationsEnabled(){return setting("notifications","on")!=="off"}
+
+
+async function notifyIncomingMessage(m){if(m.receiver_id!==me.id||m.sender_id===me.id)return;if(!notificationsEnabled())return;const bell=$("notifyBtn");if(bell){bell.classList.remove("bell-shake");void bell.offsetWidth;bell.classList.add("bell-shake");setTimeout(()=>bell.classList.remove("bell-shake"),700)}await sb.from("messages").update({delivered_at:new Date().toISOString()}).eq("id",m.id).eq("receiver_id",me.id);if(activeChat?.conversation?.id===m.conversation_id)return;const {data:u}=await sb.from("profiles").select("display_name").eq("id",m.sender_id).maybeSingle();toast(`💬 ${u?.display_name||"رسالة جديدة"}: ${m.content||"رسالة"}`);if("Notification"in window&&Notification.permission==="granted")try{new Notification(u?.display_name||"رسالة جديدة",{body:m.content||"رسالة جديدة",icon:"logo.png"})}catch(e){}}
+
+
+async function openChatById(id){const {data}=await sb.from("conversations").select("*").eq("id",id).single();if(data)openChat(data)}
+
+function openContacts(){$("contactsModal").classList.remove("hidden");renderContacts()}
+
+
+function openGlobalSettings(){$("globalSettingsModal").classList.remove("hidden")}
+
+
+function openSimple(title,body,ok="حفظ"){$("simpleTitle").textContent=title;$("simpleBody").innerHTML=body;$("simpleOk").textContent=ok;$("simpleCancel").classList.toggle("hidden",ok!=="حفظ");$("simpleOk").onclick=closeSimple;$("simpleCancel").onclick=closeSimple;$("simpleModal").classList.remove("hidden")}
+
+
+async function openUser(userId){const {data,error}=await sb.from("conversations").select("*").or(`and(user1_id.eq.${me.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${me.id})`).limit(1).maybeSingle();if(error&&error.code!=="PGRST116")return toast("تعذر فتح المحادثة");let c=data;if(!c){const r=await sb.from("conversations").insert({user1_id:me.id,user2_id:userId}).select().single();if(r.error)return toast("تعذر إنشاء المحادثة");c=r.data}$("searchResults").classList.add("hidden");$("userSearch").value="";await openChat(c)}
+
+
+function pickAudio(){const i=document.createElement("input");i.type="file";i.accept="audio/*";i.onchange=handleStoryFile;i.click()}
+
+
+async function pickContacts(){if(!navigator.contacts?.select){$("manualContactForm").classList.remove("hidden");toast("المتصفح ده مش بيدعم اختيار جهات الاتصال مباشرة — أضف الرقم يدويًا") ;return}try{const raw=await navigator.contacts.select(["name","tel"],{multiple:true});const list=readSavedContacts();for(const c of raw){const phone=normalizePhone(c.tel?.[0]||"");if(phone&&!list.some(x=>x.phone===phone))list.push({name:c.name?.[0]||"جهة اتصال",phone})}saveContacts(list);renderContacts();toast("تم استيراد جهات الاتصال")}catch(e){if(e.name!=="AbortError")toast("لم نقدر نقرأ جهات الاتصال")}}
+
+
+function readSavedContacts(){try{return JSON.parse(localStorage.getItem("combo_contacts")||"[]")}catch{return[]}}
+
+
+async function removeAvatar(){const {error}=await sb.from("profiles").update({avatar_url:null}).eq("id",me.id);if(error)return toast("تعذر حذف الصورة");me.avatar_url=null;renderAvatar(null,me.display_name);toast("تم حذف الصورة")}
+
+
+function renderAvatar(url,name){$("avatarActionBtn").innerHTML=url?`<img src="${esc(url)}">`:esc(initials(name))}
+
+
+async function renderChats(archived){const target=archived?$("archivedList"):$(("chatList"));const {data,error}=await sb.from("conversations").select("*").or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`).order("updated_at",{ascending:false});if(error){target.innerHTML="<div class='empty-card'>تعذر تحميل المحادثات</div>";return}const settings=await getSettings();const rowsBase=(data||[]).filter(c=>!settings[c.id]?.deleted);if(!rowsBase.length){target.innerHTML="<div class='empty-card'><h3>💬 مفيش محادثات</h3><p class='muted'>اضغط ＋ وابدأ محادثة جديدة.</p></div>";return}const ids=[...new Set(rowsBase.map(c=>c.user1_id===me.id?c.user2_id:c.user1_id))];const {data:pr}=await sb.from("profiles").select("id,username,display_name,phone,avatar_url").in("id",ids);const map=Object.fromEntries((pr||[]).map(x=>[x.id,x]));const {data:msgs}=await sb.from("messages").select("conversation_id,content,created_at,sender_id,receiver_id,read_at,delivered_at").in("conversation_id",rowsBase.map(c=>c.id)).order("created_at",{ascending:false}).limit(2000);const latest={},unread={};for(const m of msgs||[]){if(!latest[m.conversation_id])latest[m.conversation_id]=m;if(m.receiver_id===me.id&&!m.read_at)unread[m.conversation_id]=(unread[m.conversation_id]||0)+1}const rows=rowsBase.filter(c=>Boolean(settings[c.id]?.archived)===archived);target.innerHTML=rows.map(c=>{const u=map[c.user1_id===me.id?c.user2_id:c.user1_id]||{},last=latest[c.id],n=unread[c.id]||0;const preview=last?`${last.sender_id===me.id?"أنت: ":""}${esc(last.content||"رسالة")}`:"ابدأ المحادثة";return `<div class="chat-item selectable" data-cid="${c.id}"><div class="avatar">${u.avatar_url?`<img src="${esc(u.avatar_url)}">`:initials(u.display_name)}</div><div class="chat-info"><strong>${esc(u.display_name||"مستخدم")}</strong><small>${preview}</small></div><div class="chat-meta">${settings[c.id]?.locked?"🔒":""}<span class="time">${last?fmt(last.created_at):fmt(c.updated_at||c.created_at)}</span>${n?`<span class="badge">${n>99?"99+":n}</span>`:""}</div></div>`}).join("")||"<div class='empty-card'>مفيش محادثات هنا.</div>";target.querySelectorAll(".chat-item").forEach(el=>{let timer;el.onclick=()=>openChatById(el.dataset.cid);el.oncontextmenu=e=>{e.preventDefault();openChatById(el.dataset.cid).then(()=>archiveChat())};el.ontouchstart=()=>{timer=setTimeout(()=>{openChatById(el.dataset.cid).then(()=>$("chatMenuModal").classList.remove("hidden"))},650)};el.ontouchend=()=>clearTimeout(timer)});updateChatBadge(Object.values(unread).reduce((a,b)=>a+b,0))}
+
+
+async function renderContacts(){const q=$("contactSearch").value.trim().toLowerCase();let list=readSavedContacts().filter(x=>!q||x.name.toLowerCase().includes(q)||x.phone.includes(q));const nums=list.map(x=>x.phone).filter(Boolean);let profiles=[];if(nums.length){const {data}=await sb.from("profiles").select("id,display_name,username,phone,avatar_url").in("phone",nums);profiles=data||[]}const byPhone=Object.fromEntries(profiles.map(p=>[p.phone,p]));$("contactsList").innerHTML=list.map(c=>{const p=byPhone[c.phone];return `<div class="contact-row"><div class="avatar">${p?.avatar_url?`<img src="${esc(p.avatar_url)}">`:initials(c.name)}</div><div class="chat-info"><strong>${esc(c.name)}</strong><small>${p?`@${esc(p.username)}`:esc(c.phone)}</small></div>${p?`<button class="contact-action primary-inline" data-chat="${p.id}">دردشة</button>`:`<button class="contact-action invite-btn" data-invite="${esc(c.phone)}">ادعُ للبرنامج</button>`}</div>`}).join("")||"<div class='empty-card'>أضف جهة اتصال من الزر فوق.</div>";$("contactsList").querySelectorAll("[data-chat]").forEach(b=>b.onclick=()=>{closeContacts();openUser(b.dataset.chat)});$("contactsList").querySelectorAll("[data-invite]").forEach(b=>b.onclick=()=>inviteContact(b.dataset.invite))}
+
+
+async function reportChat(){closeChatMenu();if(!activeChat)return;const reason=prompt("اكتب سبب الإبلاغ (اختياري)")||"بلاغ من المستخدم";const r=await sb.from("reports").insert({reporter_id:me.id,reported_user_id:activeChat.user.id,reason});if(r.error)toast("تعذر إرسال البلاغ");else toast("تم إرسال البلاغ")}
+
+
+async function requestNotifications(){setComboSetting("notifications","on");if(!("Notification"in window))return;if(Notification.permission==="default")try{await Notification.requestPermission()}catch(e){}updateNotificationBell()}
+
+
+async function saveContacts(l){localStorage.setItem("combo_contacts",JSON.stringify(l));if(!me?.id)return;const d=await sb.from("user_contacts").delete().eq("user_id",me.id);if(d.error)console.warn(d.error);if(l.length){const r=await sb.from("user_contacts").insert(l.map(x=>({user_id:me.id,name:x.name,phone:x.phone})));if(r.error)console.warn(r.error)}}
+
+
+function saveManualContact(){const name=$("manualContactName").value.trim()||"جهة اتصال",phone=normalizePhone($("manualContactPhone").value);if(phone.length<10)return toast("اكتب رقم موبايل صحيح");const list=readSavedContacts();if(!list.some(x=>x.phone===phone))list.push({name,phone});saveContacts(list);$("manualContactName").value="";$("manualContactPhone").value="";renderContacts();toast("تمت إضافة جهة الاتصال")}
+
+
+async function sendSarhny(){const username=$("sarhnyUsername").value.trim(),content=$("sarhnyContent").value.trim();if(!username||!content)return toast("اكتب اسم المستخدم والرسالة");const {error}=await sb.rpc("send_sarhny_message",{p_username:username,p_content:content});if(error)return toast(error.message);$("sarhnyContent").value="";$("sarhnyCount").textContent="0";toast("تم إرسال رسالتك بشكل سري")}
+
+
+function setChatAvatar(u){$("chatAvatar").innerHTML=u?.avatar_url?`<img src="${esc(u.avatar_url)}">`:esc(initials(u?.display_name))}
+
+function setupAppLock(){pinMode="app";$("pinTitle").textContent="قفل التطبيق";$("pinConfirmBtn").textContent="تأكيد";$("pinModal").classList.remove("hidden")}
+
+
+function storyTextMode(){$("storyCanvas").classList.add("text-mode");$("storyCanvas").classList.remove("media-mode");$("storyText").focus()}
+
+
+function storyType(f){if(!f)return"text";if(f.type.startsWith("image/"))return"image";if(f.type.startsWith("video/"))return"video";if(f.type.startsWith("audio/"))return"audio";return null}
+
+
+function subscribeMessages(){if(messageChannel)sb.removeChannel(messageChannel);messageChannel=sb.channel("messages-"+me.id).on("postgres_changes",{event:"*",schema:"public",table:"messages"},p=>{if(p.eventType==="INSERT"&&p.new?.receiver_id===me.id)notifyIncomingMessage(p.new);if(activeChat&&p.new?.conversation_id===activeChat.conversation.id){loadMessages();if(p.new.receiver_id===me.id)markRead()}loadChats()}).subscribe()}
+
+function toggleCamera(){if(!localStream)return;const t=localStream.getVideoTracks()[0];if(t){t.enabled=!t.enabled;$("cameraBtn").textContent=t.enabled?"📷":"🚫"}}
+
+
+async function toggleGlobalNotifications(){const next=!notificationsEnabled();setComboSetting("notifications",next?"on":"off");updateNotificationBell();if(next){await requestNotifications();toast("تم تشغيل إشعارات البرنامج")}else toast("تم إيقاف إشعارات البرنامج")}
+
+
+function toggleMute(){if(!localStream)return;const t=localStream.getAudioTracks()[0];if(t){t.enabled=!t.enabled;$("muteBtn").textContent=t.enabled?"🎙️":"🔇"}}
+
+async function unlockApp(){const h=await sha($("unlockInput").value);if(h===localStorage.getItem("combo_app_lock")){$("lockScreen").classList.add("hidden");$("unlockInput").value=""}else toast("رمز القفل غير صحيح")}
+
+
+function updateChatBadge(n){const nav=document.querySelector('.bottom-nav .nav[data-page="homePage"]');if(!nav)return;let b=nav.querySelector('.nav-badge');if(!b){b=document.createElement('span');b.className='nav-badge';nav.appendChild(b)}b.textContent=n>99?'99+':String(n);b.classList.toggle('hidden',!n)}
+
+
+function updateNotificationBell(){const b=$("notifyBtn");if(!b)return;b.textContent=notificationsEnabled()?"🔔":"🔕";b.classList.toggle("bell-off",!notificationsEnabled());b.title=notificationsEnabled()?"إيقاف إشعارات البرنامج":"تشغيل إشعارات البرنامج"}
+
+
+async function uploadAvatar(e){const f=e.target.files?.[0];if(!f)return;const path=`${me.id}/avatar-${Date.now()}.${(f.name.split(".").pop()||"jpg").replace(/[^a-z0-9]/gi,"")}`;const up=await sb.storage.from("avatars").upload(path,f,{upsert:true});if(up.error)return toast("تعذر رفع الصورة. شغّل SQL الخاص بالصور");const pub=sb.storage.from("avatars").getPublicUrl(path);const {error}=await sb.from("profiles").update({avatar_url:pub.data.publicUrl}).eq("id",me.id);if(error)return toast("تعذر حفظ الصورة");me.avatar_url=pub.data.publicUrl;renderAvatar(me.avatar_url,me.display_name);toast("تم تحديث صورة البروفايل")}
+
+
+
+function userOnlineText(lastSeen){
+  if(!lastSeen) return 'آخر ظهور غير متاح';
+  const ms=Date.now()-new Date(lastSeen).getTime();
+  if(ms<120000) return 'متصل';
+  const d=new Date(lastSeen);
+  return 'آخر ظهور منذ '+d.toLocaleString('ar-EG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+}

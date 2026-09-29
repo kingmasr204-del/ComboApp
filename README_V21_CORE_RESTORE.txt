@@ -1,0 +1,1 @@
+ComboApp V21: restored missing core functions from the last working core while preserving V20 authentication. Fixes dead inner buttons, cloud contacts, search, archive, refresh, settings, profile, attachment and navigation actions. No new SQL.
