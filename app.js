@@ -16,7 +16,9 @@ function saveCloudSetting(key,value){cloudSettings[key]=value;clearTimeout(cloud
 function setComboSetting(key,value){localStorage.setItem("combo_"+key,String(value));saveCloudSetting(key,value)}
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))} async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 let _comboEntering=null;
-async function init(){try{bind();const {data}=await sb.auth.getSession();session=data.session;if(session)await enterApp();else showAuth();sb.auth.onAuthStateChange((e,s)=>{session=s;if(e==="PASSWORD_RECOVERY"){showRecovery();return}if(s&&!me)enterApp().catch(err=>{console.error(err);toast("تعذر فتح التطبيق، حاول مرة أخرى")});if(!s){me=null;showAuth()}})}catch(e){console.error(e);showAuth();toast(e.message||"حصل خطأ")}}
+async function init(){try{
+  if(!window.supabase){showAuth();toast('تعذر تحميل خدمة تسجيل الدخول. حدّث الصفحة أو جرّب شبكة أخرى.');return;}
+  bind();const {data}=await sb.auth.getSession();session=data.session;if(session)await enterApp();else showAuth();sb.auth.onAuthStateChange((e,s)=>{session=s;if(e==="PASSWORD_RECOVERY"){showRecovery();return}if(s&&!me)enterApp().catch(err=>{console.error(err);toast("تعذر فتح التطبيق، حاول مرة أخرى")});if(!s){me=null;showAuth()}})}catch(e){console.error(e);showAuth();toast(e.message||"حصل خطأ")}}
 function showAuth(){$("authScreen").classList.remove("hidden");$("appScreen").classList.add("hidden");$("recoveryPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden");$("signupPanel").classList.add("hidden")}
 function showRecovery(){$("authScreen").classList.remove("hidden");$("appScreen").classList.add("hidden");$("loginPanel").classList.add("hidden");$("signupPanel").classList.add("hidden");$("recoveryPanel").classList.remove("hidden")}
 function bind(){
