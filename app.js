@@ -3,7 +3,9 @@ const SUPABASE_ANON_KEY="sb_publishable_6K8b1SYA5zEubol9wqPZrw_XwKu5ccN";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let session=null,me=null,activeChat=null,pinMode=null,messageChannel=null,pendingLockedConversation=null;
 let peer=null,localStream=null,activeCall=null,callChannels=new Map(),callStartedAt=null,callTimer=null,storyFile=null,storyObjectUrl=null;
-const $=id=>document.getElementById(id); const APP_BASE_URL="https://kingmasr204-del.github.io/ComboApp/";
+const $=id=>document.getElementById(id); const APP_BASE_URL=(location.origin && location.origin!=="null")
+  ? (location.origin + location.pathname)
+  : "https://kingmasr204-del.github.io/ComboApp/";
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show"),3000)}
 function initials(n="C"){return n.trim().slice(0,1).toUpperCase()||"C"} function fmt(t){return new Date(t).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}
 function fmtDuration(sec){sec=Math.max(0,Math.floor(sec||0));return String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0")}
@@ -26,7 +28,7 @@ function bind(){
   const click=(id,fn)=>on(id,'click',fn);
   click('showSignupBtn',()=>{$('loginPanel')?.classList.add('hidden');$('signupPanel')?.classList.remove('hidden')});
   click('showLoginBtn',()=>{$('signupPanel')?.classList.add('hidden');$('loginPanel')?.classList.remove('hidden')});
-  click('loginBtn',login); click('signupBtn',signup); click('forgotBtn',resetPassword); click('saveNewPasswordBtn',saveNewPassword);
+  click('loginBtn',login); click('guestBtn',guestLogin); click('signupBtn',signup); click('forgotBtn',resetPassword); click('saveNewPasswordBtn',saveNewPassword);
   click('logoutProfileBtn',logout); click('notifyBtn',toggleGlobalNotifications); click('settingsTopBtn',openGlobalSettings); click('closeGlobalSettingsBtn',closeGlobalSettings);
   click('openProfileSetting',()=>{closeGlobalSettings();go('profilePage')});
   click('openPrivacySetting',()=>{closeGlobalSettings();showPrivacy()});
@@ -64,6 +66,24 @@ async function login(){
     await enterApp();
     toast('تم تسجيل الدخول');
   }catch(e){console.error(e);toast(e.message||'تعذر تسجيل الدخول')}finally{if(btn){btn.disabled=false;btn.textContent='دخول'}}
+}
+async function guestLogin(){
+  const btn=$('guestBtn');
+  if(btn){btn.disabled=true;btn.textContent='جاري الدخول كزائر...'}
+  try{
+    if(!sb?.auth?.signInAnonymously) throw new Error('تسجيل دخول الزوار غير مفعّل في Supabase.');
+    const r=await withTimeout(sb.auth.signInAnonymously());
+    if(r.error) throw new Error(r.error.message||'تعذر دخول الزوار');
+    session=r.data?.session||null;
+    if(!session) throw new Error('تعذر إنشاء جلسة الزائر');
+    await enterApp();
+    toast('تم الدخول كزائر');
+  }catch(e){
+    console.error(e);
+    toast(e.message||'تعذر دخول الزوار');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='دخول كزائر'}
+  }
 }
 async function signup(){
   const name=($('signupName')?.value||'').trim(),username=($('signupUsername')?.value||'').trim().toLowerCase(),email=($('signupEmail')?.value||'').trim(),phone=normalizePhone($('signupPhone')?.value||''),p=$('signupPassword')?.value||'',p2=$('signupPassword2')?.value||'';
