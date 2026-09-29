@@ -44,16 +44,52 @@ function bind(){
   click('pinConfirmBtn',confirmPin); click('pinCancelBtn',closePin); click('unlockBtn',unlockApp);
 }
 
-async function login(){
-  const email=$('loginEmail')?.value.trim(),password=$('loginPassword')?.value;
-  if(!email||!password)return toast('اكتب البريد وكلمة السر');
-  const {data,error}=await sb.auth.signInWithPassword({email,password});
-  if(error)return toast(error.message||'البريد أو كلمة السر غير صحيحة');
-  session=data.session||session;
-  try{await enterApp()}catch(e){console.error(e);toast('تعذر فتح التطبيق. حاول تحديث الصفحة مرة أخرى.')}
+async function withTimeout(promise,ms=15000){
+  let timer;
+  const timeout=new Promise((_,rej)=>timer=setTimeout(()=>rej(new Error('انتهت مهلة الاتصال بسيرفر ComboApp. جرّب تاني.')),ms));
+  try{return await Promise.race([promise,timeout])}finally{clearTimeout(timer)}
 }
-async function signup(){const name=$('signupName').value.trim(),username=$('signupUsername').value.trim().toLowerCase(),email=$('signupEmail').value.trim(),phone=normalizePhone($('signupPhone').value),p=$('signupPassword').value,p2=$('signupPassword2').value;if(!name||!username||!email||!p)return toast('كمّل البيانات');if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast('اسم المستخدم إنجليزي وأرقام و _ فقط');if(p.length<6)return toast('كلمة السر 6 أحرف على الأقل');if(p!==p2)return toast('تأكيد كلمة السر غير مطابق');const {data,error}=await sb.auth.signUp({email,password:p,options:{emailRedirectTo:APP_BASE_URL,data:{display_name:name,username,phone}}});if(error)return toast(error.message);$('signupPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');toast(data.session?'تم إنشاء الحساب':'تم إنشاء الحساب. افتح رسالة التأكيد ثم سجّل الدخول.')}
-async function resetPassword(){const email=$('loginEmail').value.trim();if(!email)return toast('اكتب بريدك أولًا');const redirectTo=window.location.origin+window.location.pathname;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error)return toast(error.message);toast('تم إرسال رابط تغيير كلمة السر')}
+async function login(){
+  const email=($('loginEmail')?.value||'').trim(),password=$('loginPassword')?.value||'';
+  if(!email||!password)return toast('اكتب البريد وكلمة السر');
+  const btn=$('loginBtn'); if(btn){btn.disabled=true;btn.textContent='جاري الدخول...'}
+  try{
+    const r=await withTimeout(sb.auth.signInWithPassword({email,password}));
+    if(r.error)return toast(r.error.message||'البريد أو كلمة السر غير صحيحة');
+    session=r.data?.session||null;
+    if(!session)return toast('تعذر إنشاء جلسة الدخول. جرّب مرة أخرى.');
+    // Open immediately; profile/secondary data is handled by enterApp safely.
+    await enterApp();
+    toast('تم تسجيل الدخول');
+  }catch(e){console.error(e);toast(e.message||'تعذر تسجيل الدخول')}finally{if(btn){btn.disabled=false;btn.textContent='دخول'}}
+}
+async function signup(){
+  const name=($('signupName')?.value||'').trim(),username=($('signupUsername')?.value||'').trim().toLowerCase(),email=($('signupEmail')?.value||'').trim(),phone=normalizePhone($('signupPhone')?.value||''),p=$('signupPassword')?.value||'',p2=$('signupPassword2')?.value||'';
+  if(!name||!username||!email||!p)return toast('كمّل البيانات');
+  if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast('اسم المستخدم إنجليزي وأرقام و _ فقط');
+  if(p.length<6)return toast('كلمة السر 6 أحرف على الأقل');
+  if(p!==p2)return toast('تأكيد كلمة السر غير مطابق');
+  const exists=await withTimeout(sb.from('profiles').select('id').eq('username',username).maybeSingle()).catch(()=>({data:null,error:null}));
+  if(exists.data)return toast('اسم المستخدم مستخدم بالفعل، اختار اسمًا آخر');
+  const btn=$('signupBtn');if(btn){btn.disabled=true;btn.textContent='جاري إنشاء الحساب...'}
+  try{
+    const r=await withTimeout(sb.auth.signUp({email,password:p,options:{emailRedirectTo:APP_BASE_URL,data:{display_name:name,username,phone}}}));
+    if(r.error)return toast(r.error.message||'تعذر إنشاء الحساب');
+    if(r.data?.session){session=r.data.session;await enterApp();toast('تم إنشاء الحساب');}
+    else{ $('signupPanel')?.classList.add('hidden');$('loginPanel')?.classList.remove('hidden'); $('loginEmail').value=email; toast('تم إنشاء الحساب. لو ظهر تأكيد البريد، افتح رسالة التأكيد ثم سجّل الدخول.'); }
+  }catch(e){console.error(e);toast(e.message||'تعذر إنشاء الحساب')}finally{if(btn){btn.disabled=false;btn.textContent='إنشاء الحساب'}}
+}
+async function resetPassword(){
+  const email=($('loginEmail')?.value||'').trim();
+  if(!email)return toast('اكتب بريدك في خانة البريد أولًا');
+  const btn=$('forgotBtn');if(btn){btn.disabled=true;btn.textContent='جاري الإرسال...'}
+  try{
+    const redirectTo=APP_BASE_URL;
+    const r=await withTimeout(sb.auth.resetPasswordForEmail(email,{redirectTo}));
+    if(r.error)return toast(r.error.message||'تعذر إرسال رابط تغيير كلمة السر');
+    toast('تم إرسال رابط تغيير كلمة السر إلى البريد');
+  }catch(e){console.error(e);toast(e.message||'تعذر إرسال رابط تغيير كلمة السر')}finally{if(btn){btn.disabled=false;btn.textContent='نسيت كلمة السر؟'}}
+}
 async function saveNewPassword(){const p=$('newPassword').value,p2=$('newPassword2').value;if(p.length<6)return toast('كلمة السر 6 أحرف على الأقل');if(p!==p2)return toast('كلمتا السر غير متطابقتين');const {error}=await sb.auth.updateUser({password:p});if(error)return toast(error.message);toast('تم تغيير كلمة السر');await sb.auth.signOut();showAuth()}
 async function logout(){try{await sb.auth.signOut()}finally{location.reload()}}
 async function enterApp(){
@@ -1121,6 +1157,62 @@ async function saveProfile(){
   setInterval(()=>{if(me&&!document.hidden)refreshMe()},60000);
   refreshMe();
 })();
+
+
+// V16 bottom compose button: kept below the chat content, beside the bottom navigation.
+(function addBottomCompose(){
+  function ensure(){
+    if($('bottomComposeBtn'))return;
+    const nav=document.querySelector('.bottom-nav'); if(!nav)return;
+    const b=document.createElement('button');b.id='bottomComposeBtn';b.className='bottom-compose-btn';b.type='button';b.setAttribute('aria-label','إنشاء محادثة جديدة');b.innerHTML='<span>💬</span><b>＋</b>';
+    b.onclick=()=>openBottomComposeMenu(); document.body.appendChild(b);
+    const m=document.createElement('div');m.id='bottomComposeModal';m.className='modal hidden';m.innerHTML=`<div class="modal-panel sheet compose-menu-v16"><header class="sheet-head"><div><h3>إنشاء جديد</h3><small class="muted">اختار اللي عايز تعمله</small></div><button id="closeBottomCompose" class="icon-btn">✕</button></header><div class="compose-grid-v16"><button id="v16AddNumber"><span>👤＋</span><strong>أضف رقم</strong><small>إضافة جهة اتصال</small></button><button id="v16NewGroup"><span>👥＋</span><strong>إنشاء جروب</strong><small>جروب جديد</small></button><button id="v16NewChannel"><span>📢＋</span><strong>إنشاء قناة</strong><small>قناة جديدة</small></button><button id="v16OpenContacts"><span>📱</span><strong>جهات الاتصال</strong><small>عرض جهاتك</small></button></div><div id="v16CommunityForm" class="v16-community-form hidden"><input id="v16CommunityName" placeholder="اسم الجروب أو القناة"><textarea id="v16CommunityBio" placeholder="وصف اختياري"></textarea><button id="v16CommunityCreate" class="primary">إنشاء</button></div></div>`;document.body.appendChild(m);
+    $('closeBottomCompose').onclick=()=>m.classList.add('hidden');m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden')});
+    $('v16AddNumber').onclick=()=>{m.classList.add('hidden');openContacts();setTimeout(()=>{$('manualContactForm')?.classList.remove('hidden'),$('manualContactName')?.focus()},100)};
+    $('v16OpenContacts').onclick=()=>{m.classList.add('hidden');openContacts()};
+    $('v16NewGroup').onclick=()=>showCommunityForm('جروب');
+    $('v16NewChannel').onclick=()=>showCommunityForm('قناة');
+    $('v16CommunityCreate').onclick=()=>createCommunityV16();
+  }
+  window.openBottomComposeMenu=function(){ensure();$('bottomComposeModal')?.classList.remove('hidden')};
+  window.showCommunityForm=function(kind){ensure();const m=$('bottomComposeModal');m.classList.remove('hidden');$('v16CommunityForm').classList.remove('hidden');$('v16CommunityName').placeholder=`اسم ${kind}`;$('v16CommunityName').dataset.kind=kind;$('v16CommunityName').focus()};
+  window.createCommunityV16=async function(){
+    const n=($('v16CommunityName')?.value||'').trim();
+    const kindLabel=$('v16CommunityName')?.dataset.kind||'جروب';
+    const kind=kindLabel==='قناة'?'channel':'group';
+    if(!n)return toast(`اكتب اسم ${kindLabel}`);
+    if(!me?.id)return toast('سجّل الدخول الأول');
+    const bio=($('v16CommunityBio')?.value||'').trim();
+    const btn=$('v16CommunityCreate'); if(btn){btn.disabled=true;btn.textContent='جاري الحفظ...'}
+    try{
+      const r=await withTimeout(sb.from('communities').insert({kind,name:n,description:bio||null,owner_id:me.id}).select('*').single());
+      if(r.error)throw r.error;
+      const community=r.data;
+      const mr=await withTimeout(sb.from('community_members').insert({community_id:community.id,user_id:me.id,role:'owner'}));
+      if(mr.error)throw mr.error;
+      // Keep a tiny local cache only for instant display; Supabase is the source of truth.
+      let arr=[];try{arr=JSON.parse(localStorage.getItem('combo_communities')||'[]')}catch(_){}
+      arr.unshift(community);localStorage.setItem('combo_communities',JSON.stringify(arr.slice(0,50)));
+      $('bottomComposeModal').classList.add('hidden');$('v16CommunityForm').classList.add('hidden');$('v16CommunityName').value='';$('v16CommunityBio').value='';
+      toast(`تم حفظ ${kindLabel} على السحابة بنجاح`);
+    }catch(e){
+      console.error(e);
+      if(/relation.*communities.*does not exist|schema cache|Could not find the table/i.test(e?.message||'')) toast('لازم تشغّل COMBOAPP_COMMUNITIES_SETUP.sql مرة واحدة في Supabase');
+      else toast('تعذر حفظ '+kindLabel+': '+(e?.message||'حصل خطأ'));
+    }finally{if(btn){btn.disabled=false;btn.textContent='إنشاء'}}
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensure,{once:true});else ensure();
+})();
+
+// Guarantee auth links/buttons still work if a later UI patch throws during bind().
+document.addEventListener('click',e=>{
+  const id=e.target?.id;
+  if(id==='showSignupBtn'){e.preventDefault();$('loginPanel')?.classList.add('hidden');$('signupPanel')?.classList.remove('hidden')}
+  if(id==='showLoginBtn'){e.preventDefault();$('signupPanel')?.classList.add('hidden');$('loginPanel')?.classList.remove('hidden')}
+  if(id==='loginBtn'){e.preventDefault();login()}
+  if(id==='signupBtn'){e.preventDefault();signup()}
+  if(id==='forgotBtn'){e.preventDefault();resetPassword()}
+},true);
 
 // Start only after every function and UI patch above has been loaded.
 init();
