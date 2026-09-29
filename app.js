@@ -1550,3 +1550,163 @@ function userOnlineText(lastSeen){
 // Startup is deliberately last: V22 is loaded before the app binds and opens the session.
 init();
 
+
+/* ===== ComboApp V24 FINAL LIGHT FIXES ===== */
+(function V24(){
+  const q=id=>document.getElementById(id);
+  const safe=s=>esc(s||'');
+  let communityCache=[];
+
+  // Exact username search: remove the old listener that queried optional columns and could return "تعذر البحث".
+  function fixExactSearch(){
+    const old=q('userSearch'); if(!old)return;
+    const fresh=old.cloneNode(true); old.replaceWith(fresh);
+    fresh.addEventListener('input',async()=>{
+      const box=q('searchResults');
+      const term=(fresh.value||'').trim().replace(/^@/,'').toLowerCase();
+      if(!term){box?.classList.add('hidden');return;}
+      box?.classList.remove('hidden');
+      if(!/^[a-z0-9_.]{3,24}$/.test(term)){
+        if(box)box.innerHTML="<div class='muted' style='padding:12px'>اكتب اليوزر كاملًا.</div>";return;
+      }
+      const r=await sb.from('profiles').select('id,username,display_name,avatar_url,phone,bio,last_seen').eq('username',term).neq('id',me?.id||'').maybeSingle();
+      if(r.error){console.warn('username search',r.error);if(box)box.innerHTML="<div class='muted' style='padding:12px'>تعذر البحث حاليًا — تأكد من اتصال الإنترنت.</div>";return;}
+      if(!r.data){if(box)box.innerHTML="<div class='muted' style='padding:12px'>مفيش حساب باليوزر ده.</div>";return;}
+      const u=r.data;
+      if(box)box.innerHTML=`<div class="result-item" data-id="${safe(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${safe(u.avatar_url)}">`:initials(u.display_name)}</div><div class="chat-info"><strong>${safe(u.display_name||'مستخدم')}</strong><small>@${safe(u.username)}</small></div><button class="contact-action primary-inline">دردشة</button></div>`;
+      box?.querySelector('.result-item')?.addEventListener('click',()=>openUser(u.id));
+    });
+  }
+
+  function ensureCommunityHome(){
+    const home=q('homePage'); if(!home||q('communityHomePanel'))return;
+    const panel=document.createElement('div');panel.id='communityHomePanel';panel.className='community-home-panel';
+    panel.innerHTML=`<div class="community-home-head"><strong>👥 جروبات وقنوات</strong><button id="communityRefreshBtn" type="button">↻ تحديث</button></div><div id="communityList" class="community-list"><div class="community-empty">لسه مفيش جروبات أو قنوات.</div></div>`;
+    const chatList=q('chatList');home.insertBefore(panel,chatList||null);
+    q('communityRefreshBtn').onclick=loadCommunities;
+  }
+
+  async function loadCommunities(){
+    ensureCommunityHome();
+    const list=q('communityList');if(!list||!me?.id)return;
+    const r=await sb.from('communities').select('id,kind,name,description,owner_id,avatar_url,invite_code,created_at').order('updated_at',{ascending:false});
+    if(r.error){
+      console.warn('communities list',r.error);
+      // Older DBs may not have invite_code until V24 SQL is run; still show existing communities.
+      const fallback=await sb.from('communities').select('id,kind,name,description,owner_id,avatar_url,created_at').order('updated_at',{ascending:false});
+      if(fallback.error){list.innerHTML='<div class="community-empty">تعذر تحميل الجروبات والقنوات.</div>';return;}
+      communityCache=(fallback.data||[]).map(x=>({...x,invite_code:null}));
+    }else communityCache=r.data||[];
+    list.innerHTML=communityCache.length?communityCache.map(c=>`<div class="community-card" data-community="${safe(c.id)}"><div class="community-icon">${c.kind==='channel'?'📢':'👥'}</div><div class="community-main"><strong>${safe(c.name)}</strong><small>${c.kind==='channel'?'قناة':'جروب'}${c.description?' • '+safe(c.description):''}</small></div><button type="button" class="community-link" data-community-link="${safe(c.id)}">🔗</button></div>`).join(''):'<div class="community-empty">لسه مفيش جروبات أو قنوات. استخدم زر + لإنشاء واحد.</div>';
+    list.querySelectorAll('[data-community]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-community-link]'))return;openCommunity(el.dataset.community)});
+    list.querySelectorAll('[data-community-link]').forEach(b=>b.onclick=e=>{e.stopPropagation();shareCommunity(b.dataset.community)});
+  }
+
+  function communityById(id){return communityCache.find(x=>String(x.id)===String(id))||null}
+  async function getCommunity(id){
+    let c=communityById(id);if(c)return c;
+    const r=await sb.from('communities').select('id,kind,name,description,owner_id,avatar_url,invite_code,created_at').eq('id',id).maybeSingle();
+    if(r.data)return r.data;
+    const f=await sb.from('communities').select('id,kind,name,description,owner_id,avatar_url,created_at').eq('id',id).maybeSingle();
+    return f.data||null;
+  }
+  async function shareCommunity(id){
+    const c=await getCommunity(id);if(!c)return toast('الجروب أو القناة غير موجودة');
+    if(!c.invite_code)return toast('شغّل ملف COMBOAPP_COMMUNITIES_V24_UPGRADE.sql مرة واحدة عشان نعمل رابط دعوة');
+    const link=APP_BASE_URL+'?community='+encodeURIComponent(c.invite_code);
+    sheet('رابط '+(c.kind==='channel'?'القناة':'الجروب'),`<input id="communityInviteInput" value="${safe(link)}" readonly><div class="modal-actions"><button class="primary" id="copyCommunityInvite">📋 نسخ الرابط</button><button class="choice-btn" id="shareCommunityInvite">↗ مشاركة الرابط</button></div>`);
+    q('copyCommunityInvite').onclick=async()=>{try{await navigator.clipboard.writeText(link);toast('تم نسخ الرابط')}catch(_){q('communityInviteInput').select();document.execCommand('copy');toast('تم نسخ الرابط')}};
+    q('shareCommunityInvite').onclick=async()=>{if(navigator.share)try{await navigator.share({title:c.name,text:'انضم إلى '+c.name,url:link})}catch(_){}else{q('communityInviteInput').select();document.execCommand('copy');toast('تم نسخ الرابط')}};
+  }
+
+  async function openCommunity(id){
+    const c=await getCommunity(id);if(!c)return toast('تعذر فتح الجروب أو القناة');
+    let modal=q('communityChatModal');
+    if(!modal){modal=document.createElement('div');modal.id='communityChatModal';modal.className='modal hidden';document.body.appendChild(modal)}
+    modal.innerHTML=`<div class="community-modal"><header class="community-head"><button id="communityClose" class="icon-btn">✕</button><div class="community-icon">${c.kind==='channel'?'📢':'👥'}</div><div class="community-info"><strong>${safe(c.name)}</strong><small>${c.kind==='channel'?'قناة':'جروب'}</small></div><button id="communityShare" class="icon-btn">🔗</button></header><div id="communityMessages" class="community-messages"><div class="community-empty">جاري تحميل الرسائل...</div></div><div class="community-actions"><button id="communityInviteBtn">👤＋ إضافة عضو</button><button id="communityShareBottom">🔗 رابط الدعوة</button></div><div class="community-compose"><input id="communityMessageInput" placeholder="اكتب رسالة..."><button id="communitySend">إرسال</button></div></div>`;
+    modal.classList.remove('hidden');q('communityClose').onclick=()=>modal.classList.add('hidden');q('communityShare').onclick=()=>shareCommunity(c.id);q('communityShareBottom').onclick=()=>shareCommunity(c.id);q('communityInviteBtn').onclick=()=>chooseCommunityMember(c);q('communitySend').onclick=()=>sendCommunityMessage(c);
+    q('communityMessageInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendCommunityMessage(c)}};
+    await loadCommunityMessages(c);
+  }
+
+  async function loadCommunityMessages(c){
+    const box=q('communityMessages');if(!box)return;
+    const r=await sb.from('community_messages').select('id,sender_id,content,created_at').eq('community_id',c.id).order('created_at',{ascending:true}).limit(200);
+    if(r.error){box.innerHTML='<div class="community-empty">تعذر تحميل رسائل الجروب حاليًا.</div>';return}
+    const ids=[...new Set((r.data||[]).map(x=>x.sender_id).filter(Boolean))];let names={};
+    if(ids.length){const p=await sb.from('profiles').select('id,display_name,username').in('id',ids);(p.data||[]).forEach(x=>names[x.id]=x.display_name||x.username||'مستخدم')}
+    box.innerHTML=(r.data||[]).map(m=>`<div class="community-message ${m.sender_id===me.id?'mine':''}"><div>${safe(m.content)}</div><small>${safe(names[m.sender_id]||'مستخدم')} • ${fmt(m.created_at)}</small></div>`).join('')||'<div class="community-empty">ابدأ أول رسالة هنا.</div>';
+    box.scrollTop=box.scrollHeight;
+  }
+  async function sendCommunityMessage(c){
+    if(c.kind==='channel'&&c.owner_id!==me.id)return toast('النشر في القناة متاح لمالك القناة حاليًا');
+    const input=q('communityMessageInput');const content=(input?.value||'').trim();if(!content)return;
+    const r=await sb.from('community_messages').insert({community_id:c.id,sender_id:me.id,content});
+    if(r.error)return toast('تعذر إرسال الرسالة للجروب');input.value='';await loadCommunityMessages(c);await loadCommunities();
+  }
+
+  async function chooseCommunityMember(c){
+    if(c.owner_id!==me.id)return toast('إضافة الأعضاء متاحة لمالك الجروب أو القناة حاليًا');
+    const r=await sb.from('profiles').select('id,display_name,username,avatar_url').neq('id',me.id).order('display_name').limit(100);
+    if(r.error)return toast('تعذر تحميل المستخدمين');
+    sheet('إضافة إلى '+(c.kind==='channel'?'القناة':'الجروب'),`<input id="communityMemberSearch" class="modal-search" placeholder="ابحث باليوزر الكامل..."><div id="communityMemberList" class="list"></div>`);
+    const render=()=>{const term=(q('communityMemberSearch').value||'').trim().replace(/^@/,'').toLowerCase();const rows=(r.data||[]).filter(u=>!term||String(u.username||'').toLowerCase()===term);q('communityMemberList').innerHTML=rows.length?rows.map(u=>`<button class="setting" data-add-member="${safe(u.id)}"><span>👤 ${safe(u.display_name||u.username)}</span><span>@${safe(u.username||'')}</span></button>`).join(''):'<div class="community-empty">اكتب اليوزر كاملًا.</div>';q('communityMemberList').querySelectorAll('[data-add-member]').forEach(b=>b.onclick=()=>addMemberToCommunity(c,b.dataset.addMember));};
+    q('communityMemberSearch').oninput=render;render();
+  }
+  async function addMemberToCommunity(c,userId){
+    const r=await sb.from('community_members').upsert({community_id:c.id,user_id:userId,role:'member'},{onConflict:'community_id,user_id'});
+    if(r.error)return toast('تعذر إضافة العضو: '+r.error.message);closeSheet();toast('تمت إضافة العضو إلى '+c.name);loadCommunities();
+  }
+
+  async function patchContactActions(){
+    const grid=q('otherProfileModal')?.querySelector('.profile-actions-grid');if(!grid)return;
+    if(grid.dataset.v24==='1')return;
+    grid.dataset.v24='1';grid.classList.add('v24-actions');
+    grid.innerHTML=`<button id="otherSarhnyBtnV24" type="button"><span>💚</span><small>صارحني</small></button><button id="otherAddBtnV24" type="button"><span>👤＋</span><small>إضافة</small></button><button id="otherCommunityBtnV24" type="button"><span>👥＋</span><small>إضافة إلى جروب أو قناة</small></button>`;
+    const u=activeChat?.user;
+    q('otherSarhnyBtnV24').onclick=()=>{if(!u?.username)return toast('المستخدم ليس لديه يوزر');closeOtherProfile();go('sarhnyPage');q('sarhnyUsername').value=u.username;q('sarhnyContent').focus()};
+    q('otherAddBtnV24').onclick=()=>{if(!u)return;addActiveContact()};
+    q('otherCommunityBtnV24').onclick=async()=>{if(!u)return await chooseCommunityForUser(u)};
+  }
+  async function chooseCommunityForUser(u){
+    const r=await sb.from('communities').select('id,kind,name,owner_id').eq('owner_id',me.id).order('created_at',{ascending:false});
+    if(r.error||!r.data?.length)return toast('اعمل جروب أو قناة الأول');
+    sheet('إضافة '+(u.display_name||'المستخدم')+' إلى',`<div class="list">${r.data.map(c=>`<button class="setting" data-pick-community="${safe(c.id)}"><span>${c.kind==='channel'?'📢':'👥'} ${safe(c.name)}</span><span>›</span></button>`).join('')}</div>`);
+    q('communityMemberSearch')?.remove();
+    document.querySelectorAll('[data-pick-community]').forEach(b=>b.onclick=async()=>{const c=r.data.find(x=>x.id===b.dataset.pickCommunity);if(!c)return;const x=await sb.from('community_members').upsert({community_id:c.id,user_id:u.id,role:'member'},{onConflict:'community_id,user_id'});if(x.error)return toast('تعذر إضافة الشخص: '+x.error.message);closeSheet();toast('تمت إضافة الشخص إلى '+c.name)});
+  }
+
+  function observeContactProfile(){
+    const modal=q('otherProfileModal');if(!modal)return;
+    const mo=new MutationObserver(()=>{if(!modal.classList.contains('hidden'))setTimeout(patchContactActions,0)});mo.observe(modal,{attributes:true,attributeFilter:['class']});
+  }
+
+  function handleInviteLink(){
+    if(!me)return;
+    const code=new URLSearchParams(location.search).get('community');if(!code)return;
+    if(q('communityInvitePending'))return;
+    const mark=document.createElement('div');mark.id='communityInvitePending';document.body.appendChild(mark);
+    sb.rpc('combo_join_community_by_invite',{p_code:code}).then(r=>{
+      if(r.error){toast('تعذر فتح رابط الجروب أو القناة: '+r.error.message);return}
+      history.replaceState({},'',APP_BASE_URL);toast('تم الانضمام بنجاح إلى '+r.data?.[0]?.name);loadCommunities();if(r.data?.[0]?.id)setTimeout(()=>openCommunity(r.data[0].id),250);
+    });
+  }
+
+  function addCommunityButtonToPlus(){
+    const m=q('bottomComposeModal');if(!m)return;
+    const grid=m.querySelector('.compose-grid-v16');if(!grid||grid.querySelector('[data-open-my-communities]'))return;
+    const b=document.createElement('button');b.setAttribute('data-open-my-communities','1');b.innerHTML='<span>👥</span><strong>جروباتي وقنواتي</strong><small>عرض وإدارة الجروبات والقنوات</small>';b.onclick=()=>{m.classList.add('hidden');ensureCommunityHome();loadCommunities();go('homePage');setTimeout(()=>q('communityHomePanel')?.scrollIntoView({behavior:'smooth'}),80)};grid.appendChild(b);
+  }
+
+  function finalWire(){
+    fixExactSearch();ensureCommunityHome();addCommunityButtonToPlus();observeContactProfile();
+    const refresh=q('refreshBtn');if(refresh)refresh.addEventListener('click',loadCommunities);
+    const notify=q('notifyBtn');if(notify)notify.onclick=toggleGlobalNotifications;
+    const story=q('storiesPage');if(story)q('storiesPage').dataset.v24='1';
+    if(me)loadCommunities();
+    setTimeout(handleInviteLink,900);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',finalWire,{once:true});else finalWire();
+  window.loadCommunities=loadCommunities;
+  window.openCommunity=openCommunity;
+})();
