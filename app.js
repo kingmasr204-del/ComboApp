@@ -121,6 +121,7 @@ async function enterApp(){
     await safeAppTask('الإعدادات',loadCloudSettings);
     await safeAppTask('جهات الاتصال',loadCloudContacts);
     await safeAppTask('الملف الشخصي',loadProfile);
+    await safeAppTask('آخر ظهور',touchLastSeen);
     await safeAppTask('المحادثات',loadChats);
     await safeAppTask('الحالات',loadStories);
     await safeAppTask('صارحني',loadSarhnyInbox);
@@ -155,7 +156,7 @@ async function touchLastSeen(){
   await sb.from('profiles').update({last_seen:now}).eq('id',me.id);
 }
 
-function enhanceUI(){
+function enhanceUIBase(){
   const a=$('attachContactBtn'); if(a) a.onclick=openAttachmentSheet;
   const title=$('chatTitle'); if(title) title.onclick=()=>{if(activeChat)openOtherProfile(activeChat.user)};
   const avatar=$('chatAvatar'); if(avatar) avatar.onclick=()=>{if(activeChat)openOtherProfile(activeChat.user)};
@@ -384,7 +385,7 @@ async function showSettings(){
 function showThemePicker(){openSimple('ألوان ComboApp',`<div class="theme-grid">${[['teal','تركوازي'],['pink','وردي'],['magenta','فوشيا'],['red','أحمر'],['hotred','أحمر فاقع'],['purple','بنفسجي'],['blue','أزرق'],['orange','برتقالي'],['gold','ذهبي'],['lime','ليموني'],['white','فاتح']].map(x=>`<button class="theme-choice theme-${x[0]}" data-theme="${x[0]}">${x[1]}</button>`).join('')}</div>`,'إغلاق');setTimeout(()=>document.querySelectorAll('.theme-choice').forEach(b=>b.onclick=()=>{setComboSetting('theme',b.dataset.theme);applyTheme();closeSimple();toast('تم تغيير اللون')}),40)}
 function applyTheme(){document.documentElement.dataset.theme=localStorage.getItem('combo_theme')||'teal'}
 function showWallpaper(){const opts=[['0','افتراضي'],['1','نقاط نيون'],['2','أخضر زجاجي'],['3','أزرق ليلي'],['4','أسود سادة'],['5','وردي ناعم'],['6','فوشيا'],['7','أحمر غامق'],['8','بنفسجي'],['9','ذهبي'],['10','سماوي'],['11','قلب ونقاط']];openSimple('خلفيات الدردشة',`<div class="wall-grid">${opts.map(x=>`<button class="wall-choice wall-choice-${x[0]}" data-wall="${x[0]}"><span></span>${x[1]}</button>`).join('')}</div>`,'إغلاق');setTimeout(()=>document.querySelectorAll('[data-wall]').forEach(b=>b.onclick=()=>{setComboSetting('wallpaper',b.dataset.wall);applyChatWallpaper();closeSimple();toast('تم تغيير خلفية الدردشة')}),40)}
-function applyChatWallpaper(){const v=localStorage.getItem('combo_wallpaper')||'0';const p=['','wall-dots','wall-green','wall-blue','wall-black','wall-pink','wall-magenta','wall-red','wall-purple','wall-gold','wall-cyan','wall-hearts'][v]||'';if($('chatPanel'))$('chatPanel').className='modal-panel chat-panel '+p;applyChatStyle()}
+function applyChatWallpaper(){const box=$("messagesBox"),v=localStorage.getItem("combo_wallpaper")||"0",custom=localStorage.getItem("combo_custom_wallpaper")||"";if(box){box.style.backgroundImage="";box.style.backgroundSize="cover";box.style.backgroundPosition="center";box.style.backgroundAttachment="scroll";box.className="messages";if(v==="custom"&&custom)box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${custom}")`;else if(v.startsWith("img")){const map={img01:"wall_01.jpg",img02:"wall_02.jpg",img03:"wall_03.jpg",img04:"wall_04.jpg",img05:"wall_05.jpg",img06:"wall_06.jpg",img07:"wall_07.jpg",img08:"wall_08.jpg",img09:"wall_09.jpg",img10:"wall_10.jpg"};if(map[v])box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("assets/wallpapers_custom/${map[v]}")`}else{const p=["","wall-dots","wall-green","wall-blue","wall-black","wall-pink","wall-magenta","wall-red","wall-purple","wall-gold","wall-cyan","wall-hearts"][v]||"";if(p)box.classList.add(p)}}applyChatStyle()}
 function showChatStyle(){const bubble=localStorage.getItem('combo_bubbles')||'classic',ticks=localStorage.getItem('combo_ticks')||'blue';openSimple('نمط الدردشة',`<h4>شكل الفقاعات</h4><div class="style-grid">${[['classic','ComboApp'],['soft','ناعمة'],['round','دائرية'],['glass','زجاجية'],['pill','واتساب بلس']].map(x=>`<button class="style-choice ${bubble===x[0]?'selected':''}" data-bubble="${x[0]}">${x[1]}</button>`).join('')}</div><h4>علامة الصح</h4><div class="style-grid">${[['blue','أزرق'],['white','أبيض'],['green','أخضر'],['black','أسود']].map(x=>`<button class="style-choice ${ticks===x[0]?'selected':''}" data-ticks="${x[0]}">${x[1]} ✓✓</button>`).join('')}</div>`,'إغلاق');setTimeout(()=>{document.querySelectorAll('[data-bubble]').forEach(b=>b.onclick=()=>{setComboSetting('bubbles',b.dataset.bubble);applyChatStyle();toast('تم تغيير شكل الفقاعات')});document.querySelectorAll('[data-ticks]').forEach(b=>b.onclick=()=>{setComboSetting('ticks',b.dataset.ticks);applyChatStyle();toast('تم تغيير علامة الصح')})},40)}
 function applyChatStyle(){const p=$('chatPanel');if(!p)return;p.dataset.bubbles=localStorage.getItem('combo_bubbles')||'classic';p.dataset.ticks=localStorage.getItem('combo_ticks')||'blue'}
 function bindV3(){
@@ -393,8 +394,7 @@ function bindV3(){
   $('otherDeleteChatBtn')?.addEventListener('click',async e=>{e.stopPropagation();await deleteChat()});
   applyTheme();applyChatWallpaper();applyChatStyle();
 }
-const _enhanceUI_V2=enhanceUI;
-function enhanceUI(){_enhanceUI_V2();bindV3()}
+function enhanceUI(){enhanceUIBase();bindV3()}
 
 function waitIceGathering(pc){return new Promise(resolve=>{if(pc.iceGatheringState==='complete')return resolve();const fn=()=>{if(pc.iceGatheringState==='complete'){pc.removeEventListener('icegatheringstatechange',fn);resolve()}};pc.addEventListener('icegatheringstatechange',fn);setTimeout(()=>{pc.removeEventListener('icegatheringstatechange',fn);resolve()},5000)})}
 function ensureRemoteAudio(){let a=$('comboRemoteAudio');if(!a){a=document.createElement('audio');a.id='comboRemoteAudio';a.autoplay=true;a.playsInline=true;a.style.display='none';document.body.appendChild(a)}return a}
@@ -846,7 +846,7 @@ handleSignal=async function(p){
     let status='آخر ظهور غير متاح';
     if(u.privacy_last_seen!=='nobody'){
       if(u.privacy_last_seen==='contacts'){
-        const r=await sb.from('user_contacts').select('id').eq('owner_id',u.id).eq('contact_id',me.id).maybeSingle();
+        const r=await sb.from('conversations').select('id').or(`and(user1_id.eq.${me.id},user2_id.eq.${u.id}),and(user1_id.eq.${u.id},user2_id.eq.${me.id})`).limit(1).maybeSingle();
         status=r.data?userOnlineText(u.last_seen):'آخر ظهور غير متاح';
       }else status=userOnlineText(u.last_seen);
     }
@@ -1217,10 +1217,6 @@ document.addEventListener('click',e=>{
   if(id==='forgotBtn'){e.preventDefault();resetPassword()}
 },true);
 
-// Start only after every function and UI patch above has been loaded.
-init();
-
-
 /* ===== ComboApp V21 CORE RESTORE: restore functions accidentally omitted in V20 ===== */
 
 
@@ -1395,3 +1391,156 @@ function userOnlineText(lastSeen){
   const d=new Date(lastSeen);
   return 'آخر ظهور منذ '+d.toLocaleString('ar-EG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 }
+
+/* ===== ComboApp V22 FINAL UI / PROFILE / WALLPAPER PATCH ===== */
+(function ComboV22(){
+  function ensureProfileViewer(){
+    let m=$('profileViewerV22');
+    if(m)return m;
+    m=document.createElement('div');
+    m.id='profileViewerV22';
+    m.className='profile-viewer-v22 hidden';
+    m.innerHTML=`
+      <div class="profile-viewer-backdrop"></div>
+      <div class="profile-viewer-stage">
+        <button type="button" id="profileViewerCloseV22" class="profile-viewer-close">✕</button>
+        <div id="profileViewerMediaV22" class="profile-viewer-media"></div>
+        <div id="profileViewerInfoV22" class="profile-viewer-info"></div>
+        <div class="profile-viewer-actions-v22">
+          <button type="button" id="profileDeleteV22">🗑️<span>حذف</span></button>
+          <button type="button" id="profileAddV22">＋<span>إضافة</span></button>
+          <button type="button" id="profileChangeV22">🖼️<span>تغيير الصورة</span></button>
+        </div>
+        <div id="profileViewerThumbsV22" class="profile-viewer-thumbs"></div>
+      </div>`;
+    document.body.appendChild(m);
+    $('profileViewerCloseV22').onclick=()=>m.classList.add('hidden');
+    m.querySelector('.profile-viewer-backdrop').onclick=()=>m.classList.add('hidden');
+    return m;
+  }
+
+  let viewerItems=[];
+  let viewerIndex=0;
+  async function profileMediaRows(){
+    const rows=[];
+    if(me?.avatar_url)rows.push({kind:'image',url:me.avatar_url,main:true,label:'الصورة الرئيسية'});
+    try{
+      const q=await sb.from('profile_media').select('*').eq('user_id',me.id).order('created_at',{ascending:false});
+      if(!q.error){
+        for(const x of (q.data||[])){
+          const url=sb.storage.from('avatars').getPublicUrl(x.media_path).data.publicUrl;
+          rows.push({kind:x.media_type==='video'?'video':'image',url,media_path:x.media_path,id:x.id,label:x.media_type==='video'?'فيديو':'صورة'});
+        }
+      }
+    }catch(_){ }
+    // Keep the old local fallback if the cloud table is unavailable.
+    if(rows.length<=1){
+      try{
+        const local=JSON.parse(localStorage.getItem(`combo_profile_media_${me?.id||'user'}`)||'[]');
+        for(const x of local){if(x?.url)rows.push({kind:x.media_type==='video'?'video':'image',url:x.url,media_path:x.media_path,label:x.media_type==='video'?'فيديو':'صورة'})}
+      }catch(_){ }
+    }
+    return rows;
+  }
+  function renderViewerItem(){
+    const box=$('profileViewerMediaV22'); if(!box)return;
+    const x=viewerItems[viewerIndex];
+    if(!x){box.innerHTML='<div class="profile-viewer-empty">مفيش صورة لسه</div>';return}
+    box.innerHTML=x.kind==='video'
+      ? `<video src="${esc(x.url)}" controls autoplay playsinline></video>`
+      : `<img src="${esc(x.url)}" alt="صورة الملف الشخصي">`;
+    $('profileViewerInfoV22').textContent=`${viewerIndex+1} / ${viewerItems.length} · ${x.label||'صورة'}`;
+    const thumbs=$('profileViewerThumbsV22');
+    thumbs.innerHTML=viewerItems.map((it,i)=>`<button type="button" class="profile-thumb-v22 ${i===viewerIndex?'active':''}" data-pv-index="${i}">${it.kind==='video'?`<video src="${esc(it.url)}" muted playsinline></video>`:`<img src="${esc(it.url)}" alt="">`}</button>`).join('');
+    thumbs.querySelectorAll('[data-pv-index]').forEach(b=>b.onclick=()=>{viewerIndex=Number(b.dataset.pvIndex);renderViewerItem()});
+  }
+  async function openProfileViewer(){
+    const m=ensureProfileViewer();
+    viewerItems=await profileMediaRows();
+    viewerIndex=0;
+    renderViewerItem();
+    m.classList.remove('hidden');
+  }
+  async function refreshViewer(){
+    if($('profileViewerV22')?.classList.contains('hidden'))return;
+    viewerItems=await profileMediaRows();
+    if(viewerIndex>=viewerItems.length)viewerIndex=Math.max(0,viewerItems.length-1);
+    renderViewerItem();
+  }
+  async function deleteMain(){
+    if(!me?.avatar_url)return toast('مفيش صورة رئيسية للحذف');
+    const r=await sb.from('profiles').update({avatar_url:null}).eq('id',me.id);
+    if(r.error)return toast('تعذر حذف الصورة الرئيسية');
+    me.avatar_url=null;renderAvatar(null,me.display_name);toast('تم حذف الصورة الرئيسية');await refreshViewer();
+  }
+  async function changeMain(e){
+    const f=e.target.files?.[0];e.target.value='';if(!f)return;
+    if(!f.type.startsWith('image/'))return toast('الصورة الرئيسية لازم تكون صورة');
+    const ext=(f.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'')||'jpg';
+    const path=`${me.id}/avatar-${Date.now()}.${ext}`;
+    const up=await sb.storage.from('avatars').upload(path,f,{upsert:false,contentType:f.type});
+    if(up.error)return toast('تعذر رفع الصورة الرئيسية: '+up.error.message);
+    const url=sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+    const r=await sb.from('profiles').update({avatar_url:url}).eq('id',me.id);
+    if(r.error)return toast('تعذر حفظ الصورة الرئيسية');
+    me.avatar_url=url;renderAvatar(url,me.display_name);toast('تم تغيير الصورة الرئيسية');await refreshViewer();
+  }
+  const viewer=ensureProfileViewer();
+  $('profileDeleteV22').onclick=deleteMain;
+  $('profileAddV22').onclick=()=>$('profileMediaInput')?.click();
+  $('profileChangeV22').onclick=()=>$('avatarFileInput')?.click();
+  // Capture the avatar tap before older V5/profile handlers so there is exactly one action: fullscreen viewer.
+  $('avatarActionBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();openProfileViewer()},true);
+  $('profileMediaInput')?.addEventListener('change',()=>setTimeout(refreshViewer,250));
+
+  // Make wallpaper picker reliable and visible even if an older wrapper is still present.
+  const oldShowWallpaper=window.showWallpaper;
+  window.showWallpaper=function(){
+    if(typeof openSimple!=='function')return oldShowWallpaper?.();
+    const built=[
+      ['0','افتراضي',''],['1','نقاط نيون',''],['2','أخضر زجاجي',''],['3','أزرق ليلي',''],['4','أسود سادة',''],['5','وردي ناعم',''],['6','فوشيا',''],['7','أحمر غامق',''],['8','بنفسجي',''],['9','ذهبي',''],['10','سماوي',''],['11','قلب ونقاط',''],
+      ['img01','غروب وجسر','assets/wallpapers_custom/wall_01.jpg'],['img02','أسد وغزال','assets/wallpapers_custom/wall_02.jpg'],['img03','ورد وهدية','assets/wallpapers_custom/wall_03.jpg'],['img04','Porsche','assets/wallpapers_custom/wall_04.jpg'],['img05','برج إيفل','assets/wallpapers_custom/wall_05.jpg'],['img06','سماء درامية','assets/wallpapers_custom/wall_06.jpg'],['img07','قمر وشجرة','assets/wallpapers_custom/wall_07.jpg'],['img08','آيات وأذكار','assets/wallpapers_custom/wall_08.jpg'],['img09','قط كيوت','assets/wallpapers_custom/wall_09.jpg'],['img10','One Piece','assets/wallpapers_custom/wall_10.jpg']
+    ];
+    const cards=built.map(w=>`<button type="button" class="v22-wall-card" data-v22-wall="${w[0]}">${w[2]?`<img src="${w[2]}" alt="">`:`<span class="v22-wall-swatch wall-choice-${w[0]}"></span>`}<b>${esc(w[1])}</b></button>`).join('');
+    openSimple('خلفيات الدردشة',`<div class="v22-wall-tools"><button type="button" id="v22WallGallery" class="choice-btn">🖼️ اختار صورة من المعرض</button><button type="button" id="v22WallRemove" class="choice-btn">🧹 إزالة صورة الخلفية</button></div><div class="v22-wall-grid">${cards}</div><input id="v22WallInput" type="file" accept="image/*" hidden>`,'إغلاق');
+    setTimeout(()=>{
+      document.querySelectorAll('[data-v22-wall]').forEach(b=>b.onclick=()=>{localStorage.setItem('combo_wallpaper',b.dataset.v22Wall);localStorage.removeItem('combo_custom_wallpaper');applyChatWallpaper();closeSimple();toast('تم اختيار خلفية الدردشة')});
+      $('v22WallGallery').onclick=()=>$('v22WallInput').click();
+      $('v22WallRemove').onclick=()=>{localStorage.removeItem('combo_custom_wallpaper');localStorage.setItem('combo_wallpaper','0');applyChatWallpaper();closeSimple();toast('تمت إزالة الخلفية')};
+      $('v22WallInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(f)});localStorage.setItem('combo_custom_wallpaper',data);localStorage.setItem('combo_wallpaper','custom');applyChatWallpaper();closeSimple();toast('تم وضع صورتك كخلفية للدردشة')}catch(_){toast('تعذر استخدام الصورة')}};
+    },30);
+  };
+
+  // Apply wallpaper directly to the message area. This works for built-in, supplied and gallery images.
+  const oldApply=window.applyChatWallpaper;
+  window.applyChatWallpaper=function(){
+    const box=$('messagesBox'); if(!box)return oldApply?.();
+    const v=localStorage.getItem('combo_wallpaper')||'0';
+    box.style.backgroundImage='';box.style.backgroundSize='cover';box.style.backgroundPosition='center';box.style.backgroundAttachment='scroll';
+    if(v==='custom'&&localStorage.getItem('combo_custom_wallpaper'))box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${localStorage.getItem('combo_custom_wallpaper')}")`;
+    else if(v.startsWith('img')){
+      const map={img01:'wall_01.jpg',img02:'wall_02.jpg',img03:'wall_03.jpg',img04:'wall_04.jpg',img05:'wall_05.jpg',img06:'wall_06.jpg',img07:'wall_07.jpg',img08:'wall_08.jpg',img09:'wall_09.jpg',img10:'wall_10.jpg'};
+      const file=map[v];if(file)box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("assets/wallpapers_custom/${file}")`;
+    }else{
+      const p=['','wall-dots','wall-green','wall-blue','wall-black','wall-pink','wall-magenta','wall-red','wall-purple','wall-gold','wall-cyan','wall-hearts'][v]||'';
+      box.className='messages '+p;
+    }
+  };
+
+  // Ensure all chat controls remain wired after dynamic UI patches.
+  function wireV22(){
+    const bindClick=(id,fn)=>{const el=$(id);if(el){el.onclick=fn}};
+    bindClick('notifyBtn',toggleGlobalNotifications);bindClick('settingsTopBtn',openGlobalSettings);bindClick('newChatBtn',openContacts);
+    bindClick('sendMessageBtn',sendMessage);bindClick('emojiBtn',toggleEmoji);bindClick('attachContactBtn',openAttachmentSheet);bindClick('closeChatBtn',closeChat);
+    bindClick('chatMenuBtn',()=>{$('chatMenuModal')?.classList.remove('hidden')});bindClick('menuCancelBtn',closeChatMenu);bindClick('menuArchiveBtn',archiveChat);bindClick('menuLockBtn',lockChat);bindClick('menuDeleteBtn',deleteChat);bindClick('menuReportBtn',reportChat);bindClick('menuAddContactBtn',addActiveContact);
+    bindClick('attachCancelBtn',closeAttachmentSheet);bindClick('attachPhotoVideoBtn',()=>pickChatFile('media'));bindClick('attachAudioBtn',()=>pickChatFile('audio'));bindClick('attachCameraBtn',()=>pickChatFile('camera'));
+    const mi=$('messageInput');if(mi)mi.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}};
+    const search=$('userSearch');if(search)search.oninput=searchUsers;
+    bindClick('backHomeBtn',()=>go('homePage'));
+    bindClick('closeOtherProfileBtn',closeOtherProfile);
+  }
+})();
+
+// Startup is deliberately last: V22 is loaded before the app binds and opens the session.
+init();
+
