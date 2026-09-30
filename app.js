@@ -2928,3 +2928,85 @@ init();
 (function V33CSS(){const s=document.createElement('style');s.textContent=`
 .v32-chat-header{display:flex;align-items:center;gap:9px;min-width:0}.v32-chat-avatar{display:flex;align-items:center;justify-content:center;flex:0 0 46px;width:46px;height:46px;padding:0;border-radius:50%;border:1px solid #18bfa9;background:#0b2b34;color:#fff;overflow:hidden;cursor:pointer}.v32-chat-avatar img{width:100%;height:100%;object-fit:cover}.v29-comm-title{background:transparent;border:0;color:inherit;cursor:pointer;text-align:right;padding:4px;min-width:0}.v29-comm-title strong,.v29-comm-title small{display:block}.v32-community-modal .community-actions,.v32-community-modal .v27-community-actions,.v32-community-modal .v25-community-actions{display:none!important}.v33-profile-sheet,.v33-sheet{width:min(760px,96vw);max-height:94vh;overflow:auto;background:#061820;color:#fff;border:1px solid #15515b;border-radius:22px;padding:16px;box-sizing:border-box}.v33-profile-sheet{margin:auto}.v33-photo-wrap{text-align:center}.v33-group-avatar{width:118px;height:118px;border-radius:50%;border:2px solid #00dcb0;background:#0b2b34;color:#fff;overflow:hidden;font-size:48px;cursor:pointer}.v33-group-avatar img{width:100%;height:100%;object-fit:cover}.v33-photo-wrap small{display:block;color:#9cc8c8;margin:6px}.v33-owner,.v33-link-row{margin:10px 0;padding:10px;border-radius:13px;background:#0a252d}.v33-link-row{display:flex;gap:6px}.v33-link-row input{flex:1;min-width:0;background:#061820;color:#fff;border:1px solid #174750;border-radius:10px;padding:9px}.v33-link-row button,.v33-actions button,.v33-member-actions button{border:1px solid #18515b;background:#0c3039;color:#fff;border-radius:11px;padding:9px}.v33-actions{display:grid;gap:7px}.v33-actions .danger,.v33-member-actions .danger{background:#4d1720}.v33-members{margin-top:14px}.v33-member{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #123740}.v33-member-main{display:flex;align-items:center;gap:8px;min-width:0}.v33-member-main small{display:block;color:#8fb3b6}.v33-member-actions{display:flex;gap:5px;flex-wrap:wrap}.v33-user-row{width:100%;display:grid;grid-template-columns:42px 1fr auto auto;gap:8px;align-items:center;padding:10px;background:#0a252d;border:1px solid #15434b;color:#fff;border-radius:12px;margin:4px 0;text-align:right}.v33-user-row span:first-child{width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center}.v33-user-row img{width:100%;height:100%;object-fit:cover}.v33-user-row small{color:#8fb3b6}.v33-setting{padding:12px;margin:8px 0;border:1px solid #16464e;border-radius:13px}.v33-setting label{display:block;padding:9px}.v33-request{display:flex;justify-content:space-between;gap:6px;align-items:center;padding:10px;border-bottom:1px solid #173c44}.v33-request button{border:1px solid #1a4d56;background:#0b3038;color:#fff;border-radius:9px;padding:8px}.v33-sheet label{display:block;margin:9px 0;color:#9bd1cf}.v33-sheet input,.v33-sheet textarea{width:100%;box-sizing:border-box;margin-top:5px;background:#061820;color:#fff;border:1px solid #16464e;border-radius:12px;padding:11px}.v33-sheet textarea{min-height:100px;resize:vertical}.v33-sheet .primary{width:100%;margin-top:10px;background:#00cfa8;color:#032019;border:0;border-radius:12px;padding:13px;font-weight:700}
 `;document.head.appendChild(s)})();
+
+
+/* ===== ComboApp V35 — mobile story fit + one-letter username search + group profile click ===== */
+(function V35(){
+  const q=id=>document.getElementById(id);
+  const esc35=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const toast35=m=>typeof window.toast==='function'?window.toast(m):console.log(m);
+  const uid=()=>window.me?.id||window.currentUser?.()?.id||'';
+
+  /* Username search: one character is enough. Prefix/partial match, no privacy filter. */
+  function bindUsernameSearch35(){
+    const old=q('userSearch'); if(!old)return;
+    if(old.dataset.v35==='1')return;
+    const fresh=old.cloneNode(true); old.replaceWith(fresh); fresh.dataset.v35='1';
+    const run=async()=>{
+      const box=q('searchResults');
+      const term=(fresh.value||'').trim().replace(/^@/,'').toLowerCase();
+      if(!box)return;
+      if(!term){box.classList.add('hidden');box.innerHTML='';return;}
+      box.classList.remove('hidden');
+      if(!/^[a-z0-9_.]+$/.test(term)){
+        box.innerHTML='<div class="muted" style="padding:12px">اكتب حرف أو جزء من اليوزر.</div>';return;
+      }
+      try{
+        let query=sb.from('profiles').select('id,username,display_name,avatar_url').ilike('username',term+'%').order('username').limit(50);
+        if(uid())query=query.neq('id',uid());
+        const r=await query;
+        if(r.error)throw r.error;
+        const rows=r.data||[];
+        box.innerHTML=rows.length?rows.map(u=>`<div class="result-item" data-v35-user="${esc35(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${esc35(u.avatar_url)}">`:'👤'}</div><div class="chat-info"><strong>${esc35(u.display_name||u.username||'مستخدم')}</strong><small>@${esc35(u.username||'')}</small></div><button type="button" class="contact-action primary-inline">دردشة</button></div>`).join(''):'<div class="muted" style="padding:12px">مفيش مستخدمين يبدأ يوزرهم بالحروف دي.</div>';
+        box.querySelectorAll('[data-v35-user]').forEach(el=>el.onclick=()=>window.openUser?.(el.dataset.v35User));
+      }catch(err){console.warn('V35 username search',err);box.innerHTML='<div class="muted" style="padding:12px">تعذر البحث حاليًا.</div>';}
+    };
+    fresh.addEventListener('input',run);fresh.addEventListener('keyup',run);
+  }
+
+  /* Force the group avatar/title in the open group chat to open the full profile sheet. */
+  function bindGroupProfile35(){
+    const modal=q('communityChatModal');
+    if(!modal||modal.dataset.v35profile==='1')return;
+    const wire=()=>{
+      const av=q('v32CommAvatar'),title=q('v32CommTitle');
+      const open=async()=>{
+        const id=modal.dataset.v35CommunityId;
+        if(!id)return;
+        const r=await sb.from('communities').select('*').eq('id',id).maybeSingle();
+        const c=r.data;if(!c)return toast35('تعذر فتح معلومات المجموعة');
+        if(typeof window.openCommunityProfile33==='function')return window.openCommunityProfile33(c);
+        if(typeof window.openCommunityProfileV25==='function')return window.openCommunityProfileV25(c);
+        toast35('تعذر فتح معلومات المجموعة');
+      };
+      if(av){av.onclick=e=>{e.preventDefault();e.stopPropagation();open()};av.ontouchend=e=>{e.preventDefault();open()};}
+      if(title){title.onclick=e=>{e.preventDefault();e.stopPropagation();open()};title.ontouchend=e=>{e.preventDefault();open()};}
+    };
+    const obs=new MutationObserver(wire);obs.observe(modal,{childList:true,subtree:true});
+    modal.dataset.v35profile='1';
+    wire();
+    window._comboV35GroupWire=wire;
+  }
+  const oldOpenCommunity=window.openCommunity;
+  if(typeof oldOpenCommunity==='function'){
+    window.openCommunity=async function(id){
+      const r=await oldOpenCommunity(id);
+      const m=q('communityChatModal');if(m){m.dataset.v35CommunityId=id;bindGroupProfile35();window._comboV35GroupWire?.();}
+      return r;
+    };
+  }
+
+  /* Make the story composer fit the actual phone viewport. */
+  function fixStory35(){
+    const composer=q('storyComposer');if(!composer)return;
+    const colors=composer.querySelector('.story-colors'),tools=composer.querySelector('.story-bottom-tools'),privacy=q('storyPrivacyBtn');
+    if(colors&&tools)tools.parentNode.insertBefore(colors,tools);
+    if(privacy&&tools)tools.parentNode.insertBefore(privacy,tools.nextSibling);
+    composer.classList.add('v35-story-composer');
+    const canvas=q('storyCanvas');if(canvas)canvas.classList.add('v35-story-canvas');
+    const post=q('storyPostTop');if(post)post.style.display='inline-flex';
+  }
+
+  function boot35(){bindUsernameSearch35();bindGroupProfile35();fixStory35();}
+  boot35();setTimeout(boot35,150);setTimeout(boot35,800);setTimeout(boot35,1800);
+})();
