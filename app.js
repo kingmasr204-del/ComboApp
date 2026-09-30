@@ -2928,3 +2928,372 @@ init();
 (function V33CSS(){const s=document.createElement('style');s.textContent=`
 .v32-chat-header{display:flex;align-items:center;gap:9px;min-width:0}.v32-chat-avatar{display:flex;align-items:center;justify-content:center;flex:0 0 46px;width:46px;height:46px;padding:0;border-radius:50%;border:1px solid #18bfa9;background:#0b2b34;color:#fff;overflow:hidden;cursor:pointer}.v32-chat-avatar img{width:100%;height:100%;object-fit:cover}.v29-comm-title{background:transparent;border:0;color:inherit;cursor:pointer;text-align:right;padding:4px;min-width:0}.v29-comm-title strong,.v29-comm-title small{display:block}.v32-community-modal .community-actions,.v32-community-modal .v27-community-actions,.v32-community-modal .v25-community-actions{display:none!important}.v33-profile-sheet,.v33-sheet{width:min(760px,96vw);max-height:94vh;overflow:auto;background:#061820;color:#fff;border:1px solid #15515b;border-radius:22px;padding:16px;box-sizing:border-box}.v33-profile-sheet{margin:auto}.v33-photo-wrap{text-align:center}.v33-group-avatar{width:118px;height:118px;border-radius:50%;border:2px solid #00dcb0;background:#0b2b34;color:#fff;overflow:hidden;font-size:48px;cursor:pointer}.v33-group-avatar img{width:100%;height:100%;object-fit:cover}.v33-photo-wrap small{display:block;color:#9cc8c8;margin:6px}.v33-owner,.v33-link-row{margin:10px 0;padding:10px;border-radius:13px;background:#0a252d}.v33-link-row{display:flex;gap:6px}.v33-link-row input{flex:1;min-width:0;background:#061820;color:#fff;border:1px solid #174750;border-radius:10px;padding:9px}.v33-link-row button,.v33-actions button,.v33-member-actions button{border:1px solid #18515b;background:#0c3039;color:#fff;border-radius:11px;padding:9px}.v33-actions{display:grid;gap:7px}.v33-actions .danger,.v33-member-actions .danger{background:#4d1720}.v33-members{margin-top:14px}.v33-member{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #123740}.v33-member-main{display:flex;align-items:center;gap:8px;min-width:0}.v33-member-main small{display:block;color:#8fb3b6}.v33-member-actions{display:flex;gap:5px;flex-wrap:wrap}.v33-user-row{width:100%;display:grid;grid-template-columns:42px 1fr auto auto;gap:8px;align-items:center;padding:10px;background:#0a252d;border:1px solid #15434b;color:#fff;border-radius:12px;margin:4px 0;text-align:right}.v33-user-row span:first-child{width:38px;height:38px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center}.v33-user-row img{width:100%;height:100%;object-fit:cover}.v33-user-row small{color:#8fb3b6}.v33-setting{padding:12px;margin:8px 0;border:1px solid #16464e;border-radius:13px}.v33-setting label{display:block;padding:9px}.v33-request{display:flex;justify-content:space-between;gap:6px;align-items:center;padding:10px;border-bottom:1px solid #173c44}.v33-request button{border:1px solid #1a4d56;background:#0b3038;color:#fff;border-radius:9px;padding:8px}.v33-sheet label{display:block;margin:9px 0;color:#9bd1cf}.v33-sheet input,.v33-sheet textarea{width:100%;box-sizing:border-box;margin-top:5px;background:#061820;color:#fff;border:1px solid #16464e;border-radius:12px;padding:11px}.v33-sheet textarea{min-height:100px;resize:vertical}.v33-sheet .primary{width:100%;margin-top:10px;background:#00cfa8;color:#032019;border:0;border-radius:12px;padding:13px;font-weight:700}
 `;document.head.appendChild(s)})();
+
+
+/* ===== ComboApp V35 — mobile story fit + one-letter username search + group profile click ===== */
+(function V35(){
+  const q=id=>document.getElementById(id);
+  const esc35=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const toast35=m=>typeof window.toast==='function'?window.toast(m):console.log(m);
+  const uid=()=>window.me?.id||window.currentUser?.()?.id||'';
+
+  /* Username search: one character is enough. Prefix/partial match, no privacy filter. */
+  function bindUsernameSearch35(){
+    const old=q('userSearch'); if(!old)return;
+    if(old.dataset.v35==='1')return;
+    const fresh=old.cloneNode(true); old.replaceWith(fresh); fresh.dataset.v35='1';
+    const run=async()=>{
+      const box=q('searchResults');
+      const term=(fresh.value||'').trim().replace(/^@/,'').toLowerCase();
+      if(!box)return;
+      if(!term){box.classList.add('hidden');box.innerHTML='';return;}
+      box.classList.remove('hidden');
+      if(!/^[a-z0-9_.]+$/.test(term)){
+        box.innerHTML='<div class="muted" style="padding:12px">اكتب حرف أو جزء من اليوزر.</div>';return;
+      }
+      try{
+        let query=sb.from('profiles').select('id,username,display_name,avatar_url').ilike('username',term+'%').order('username').limit(50);
+        if(uid())query=query.neq('id',uid());
+        const r=await query;
+        if(r.error)throw r.error;
+        const rows=r.data||[];
+        box.innerHTML=rows.length?rows.map(u=>`<div class="result-item" data-v35-user="${esc35(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${esc35(u.avatar_url)}">`:'👤'}</div><div class="chat-info"><strong>${esc35(u.display_name||u.username||'مستخدم')}</strong><small>@${esc35(u.username||'')}</small></div><button type="button" class="contact-action primary-inline">دردشة</button></div>`).join(''):'<div class="muted" style="padding:12px">مفيش مستخدمين يبدأ يوزرهم بالحروف دي.</div>';
+        box.querySelectorAll('[data-v35-user]').forEach(el=>el.onclick=()=>window.openUser?.(el.dataset.v35User));
+      }catch(err){console.warn('V35 username search',err);box.innerHTML='<div class="muted" style="padding:12px">تعذر البحث حاليًا.</div>';}
+    };
+    fresh.addEventListener('input',run);fresh.addEventListener('keyup',run);
+  }
+
+  /* Force the group avatar/title in the open group chat to open the full profile sheet. */
+  function bindGroupProfile35(){
+    const modal=q('communityChatModal');
+    if(!modal||modal.dataset.v35profile==='1')return;
+    const wire=()=>{
+      const av=q('v32CommAvatar'),title=q('v32CommTitle');
+      const open=async()=>{
+        const id=modal.dataset.v35CommunityId;
+        if(!id)return;
+        const r=await sb.from('communities').select('*').eq('id',id).maybeSingle();
+        const c=r.data;if(!c)return toast35('تعذر فتح معلومات المجموعة');
+        if(typeof window.openCommunityProfile33==='function')return window.openCommunityProfile33(c);
+        if(typeof window.openCommunityProfileV25==='function')return window.openCommunityProfileV25(c);
+        toast35('تعذر فتح معلومات المجموعة');
+      };
+      if(av){av.onclick=e=>{e.preventDefault();e.stopPropagation();open()};av.ontouchend=e=>{e.preventDefault();open()};}
+      if(title){title.onclick=e=>{e.preventDefault();e.stopPropagation();open()};title.ontouchend=e=>{e.preventDefault();open()};}
+    };
+    const obs=new MutationObserver(wire);obs.observe(modal,{childList:true,subtree:true});
+    modal.dataset.v35profile='1';
+    wire();
+    window._comboV35GroupWire=wire;
+  }
+  const oldOpenCommunity=window.openCommunity;
+  if(typeof oldOpenCommunity==='function'){
+    window.openCommunity=async function(id){
+      const r=await oldOpenCommunity(id);
+      const m=q('communityChatModal');if(m){m.dataset.v35CommunityId=id;bindGroupProfile35();window._comboV35GroupWire?.();}
+      return r;
+    };
+  }
+
+  /* Make the story composer fit the actual phone viewport. */
+  function fixStory35(){
+    const composer=q('storyComposer');if(!composer)return;
+    const colors=composer.querySelector('.story-colors'),tools=composer.querySelector('.story-bottom-tools'),privacy=q('storyPrivacyBtn');
+    if(colors&&tools)tools.parentNode.insertBefore(colors,tools);
+    if(privacy&&tools)tools.parentNode.insertBefore(privacy,tools.nextSibling);
+    composer.classList.add('v35-story-composer');
+    const canvas=q('storyCanvas');if(canvas)canvas.classList.add('v35-story-canvas');
+    const post=q('storyPostTop');if(post)post.style.display='inline-flex';
+  }
+
+  function boot35(){bindUsernameSearch35();bindGroupProfile35();fixStory35();}
+  boot35();setTimeout(boot35,150);setTimeout(boot35,800);setTimeout(boot35,1800);
+})();
+
+
+/* ===== ComboApp V36 — reliable profile save, community creation/profile, real wallpaper paths ===== */
+(function V36(){
+  const q=id=>document.getElementById(id);
+  const esc36=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const toast36=m=>typeof window.toast==='function'?window.toast(m):console.log(m);
+  const uid36=()=>window.me?.id||'';
+
+  /* ---- Profile: never send the optional phone column. This keeps profile save working
+          even when Supabase schema cache does not contain profiles.phone. ---- */
+  function bindProfileSave36(){
+    const old=q('saveProfileBtn'); if(!old)return;
+    const b=old.cloneNode(true); old.replaceWith(b); b.dataset.v36='1';
+    b.onclick=async()=>{
+      const id=uid36();
+      if(!id)return toast36('سجّل الدخول الأول');
+      const display_name=(q('profileName')?.value||'').trim();
+      const username=(q('profileUsername')?.value||'').trim().toLowerCase();
+      const phone=(q('profilePhone')?.value||'').replace(/\D/g,'');
+      const bio=(q('profileBio')?.value||'').trim();
+      if(!display_name||!username)return toast36('الاسم واسم المستخدم مطلوبين');
+      if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast36('اسم المستخدم 3-24 حرفًا: إنجليزي وأرقام و _ و . فقط');
+      const uq=await sb.from('profiles').select('id').eq('username',username).neq('id',id).maybeSingle();
+      if(uq.error)return toast36('تعذر التحقق من اسم المستخدم: '+uq.error.message);
+      if(uq.data)return toast36('اسم المستخدم مستخدم بالفعل');
+      const now=new Date().toISOString();
+      const payload={display_name,username,bio,last_seen:now};
+      const r=await sb.from('profiles').update(payload).eq('id',id).select('*').maybeSingle();
+      if(r.error)return toast36('تعذر حفظ البيانات: '+r.error.message);
+      if(!r.data)return toast36('تعذر حفظ البيانات');
+      if(phone)localStorage.setItem('combo_profile_phone_'+id,phone);else localStorage.removeItem('combo_profile_phone_'+id);
+      window.me={...window.me,...r.data,phone:phone||window.me?.phone||null};
+      if(typeof window.renderAvatar==='function')window.renderAvatar(window.me.avatar_url,display_name);
+      toast36('تم حفظ البيانات بنجاح');
+    };
+  }
+
+  /* ---- Search: one character/prefix, no full-username requirement. ---- */
+  function bindUsername36(){
+    const old=q('userSearch');if(!old)return;
+    const fresh=old.cloneNode(true);old.replaceWith(fresh);fresh.dataset.v36='1';
+    const run=async()=>{
+      const box=q('searchResults');const term=(fresh.value||'').trim().replace(/^@/,'').toLowerCase();if(!box)return;
+      if(!term){box.classList.add('hidden');box.innerHTML='';return;}
+      box.classList.remove('hidden');
+      if(!/^[a-z0-9_.]+$/.test(term)){box.innerHTML='<div class="muted" style="padding:12px">اكتب حرف أو جزء من اليوزر.</div>';return;}
+      const r=await sb.from('profiles').select('id,username,display_name,avatar_url').ilike('username',term+'%').order('username').limit(50);
+      if(r.error){console.warn(r.error);box.innerHTML='<div class="muted" style="padding:12px">تعذر البحث حاليًا.</div>';return;}
+      const rows=(r.data||[]).filter(x=>x.id!==uid36());
+      box.innerHTML=rows.length?rows.map(u=>`<div class="result-item" data-v36-user="${esc36(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${esc36(u.avatar_url)}">`:'👤'}</div><div class="chat-info"><strong>${esc36(u.display_name||u.username||'مستخدم')}</strong><small>@${esc36(u.username||'')}</small></div><button type="button" class="contact-action primary-inline">دردشة</button></div>`).join(''):'<div class="muted" style="padding:12px">مفيش مستخدمين مطابقين.</div>';
+      box.querySelectorAll('[data-v36-user]').forEach(el=>el.onclick=()=>window.openUser?.(el.dataset.v36User));
+    };
+    fresh.addEventListener('input',run);fresh.addEventListener('keyup',run);
+  }
+
+  /* ---- Create group/channel: show a clear form with a large, always-visible button. ---- */
+  function patchCommunityCreator36(){
+    const oldShow=window.showCommunityForm;
+    window.showCommunityForm=function(kind){
+      const modal=q('bottomComposeModal');if(!modal)return;
+      modal.classList.remove('hidden');
+      const grid=modal.querySelector('.compose-grid-v16');if(grid)grid.style.display='none';
+      const form=q('v16CommunityForm');if(!form)return;
+      form.classList.remove('hidden');form.style.display='grid';
+      const name=q('v16CommunityName'),bio=q('v16CommunityBio'),btn=q('v16CommunityCreate');
+      if(name){name.placeholder=`اسم ${kind}`;name.dataset.kind=kind;name.value='';}
+      if(bio){bio.placeholder='نبذة عن الجروب أو القناة (اختياري)';bio.value='';}
+      if(btn){btn.style.display='block';btn.style.width='100%';btn.style.minHeight='52px';btn.style.fontSize='18px';btn.textContent=`إنشاء ${kind}`;btn.disabled=false;}
+      let title=modal.querySelector('.v36-create-title');
+      if(!title){title=document.createElement('div');title.className='v36-create-title';form.prepend(title)}
+      title.textContent=`إنشاء ${kind}`;
+      setTimeout(()=>name?.focus(),60);
+    };
+
+    window.createCommunityV16=async function(){
+      const name=(q('v16CommunityName')?.value||'').trim();
+      const kindLabel=q('v16CommunityName')?.dataset.kind||'جروب';
+      const kind=kindLabel==='قناة'?'channel':'group';
+      if(!name)return toast36(`اكتب اسم ${kindLabel}`);
+      const id=uid36();if(!id)return toast36('سجّل الدخول الأول');
+      const bio=(q('v16CommunityBio')?.value||'').trim();const btn=q('v16CommunityCreate');
+      if(btn){btn.disabled=true;btn.textContent=`جاري إنشاء ${kindLabel}...`}
+      try{
+        const r=await sb.from('communities').insert({kind,name,description:bio||null,owner_id:id}).select('*').single();
+        if(r.error)throw r.error;
+        const c=r.data;
+        const mr=await sb.from('community_members').upsert({community_id:c.id,user_id:id,role:'owner'},{onConflict:'community_id,user_id'});
+        if(mr.error)throw mr.error;
+        let code='';
+        try{const z=await sb.rpc('combo_v28_ensure_invite',{p_community_id:c.id});if(!z.error)code=z.data||''}catch(_){ }
+        if(!code){code=Math.random().toString(36).slice(2,14);await sb.from('communities').update({invite_code:code}).eq('id',c.id).eq('owner_id',id)}
+        modalClose36();
+        await window.loadCommunities?.();
+        toast36(`تم إنشاء ${kindLabel} بنجاح`);
+        setTimeout(()=>window.openCommunityProfile33?.({...c,invite_code:code}),150);
+      }catch(err){console.error(err);toast36(`تعذر إنشاء ${kindLabel}: ${err?.message||'حصل خطأ'}`)}
+      finally{if(btn){btn.disabled=false;btn.textContent=`إنشاء ${kindLabel}`}}
+    };
+    function modalClose36(){q('bottomComposeModal')?.classList.add('hidden');q('v16CommunityForm')?.classList.add('hidden');const grid=q('bottomComposeModal')?.querySelector('.compose-grid-v16');if(grid)grid.style.display='grid'}
+    q('v16CommunityCreate')?.addEventListener('click',()=>window.createCommunityV16(),true);
+  }
+
+  /* ---- Wallpapers: use an explicit GitHub Pages base path and show all 20 as image cards. ---- */
+  const walls36=[
+    ['img01','غروب وجسر','wall_01.jpg'],['img02','أسد وغزال','wall_02.jpg'],['img03','ورد وهدية','wall_03.jpg'],['img04','Porsche','wall_04.jpg'],['img05','برج إيفل','wall_05.jpg'],
+    ['img06','سماء درامية','wall_06.jpg'],['img07','قمر وشجرة','wall_07.jpg'],['img08','آيات وأذكار','wall_08.jpg'],['img09','قط كيوت','wall_09.jpg'],['img10','One Piece','wall_10.jpg'],
+    ['img11','ساموراي والزهور','wall_11.jpg'],['img12','ألوان مكسورة','wall_12.jpg'],['img13','ستايل كلاسيكي','wall_13.jpg'],['img14','Focus on yourself','wall_14.jpg'],['img15','عيون بالأسود','wall_15.jpg'],
+    ['img16','Spider-Man','wall_16.jpg'],['img17','غوريلا','wall_17.jpg'],['img18','خلفية طريفة','wall_18.jpg'],['img19','أنمي','wall_19.jpg'],['img20','ستايل أبيض وأسود','wall_20.jpg']
+  ];
+  const assetBase36=()=>location.origin+(location.pathname.endsWith('/')?location.pathname:location.pathname+'/');
+  const wallUrl36=f=>assetBase36()+'assets/wallpapers_custom/'+f;
+  function applyWall36(){
+    const box=q('messagesBox');if(!box)return;
+    const v=localStorage.getItem('combo_wallpaper')||'0';
+    box.className='messages';box.style.backgroundImage='';box.style.backgroundSize='cover';box.style.backgroundPosition='center';box.style.backgroundRepeat='no-repeat';
+    const w=walls36.find(x=>x[0]===v);
+    if(w)box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${wallUrl36(w[2])}")`;
+    else if(v==='custom'){const d=localStorage.getItem('combo_custom_wallpaper');if(d)box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${d}")`}
+    else {const cls=['','wall-dots','wall-green','wall-blue','wall-black','wall-pink','wall-magenta','wall-red','wall-purple','wall-gold','wall-cyan','wall-hearts'][v]||'';if(cls)box.classList.add(cls)}
+  }
+  function showWall36(){
+    if(typeof window.openSimple!=='function')return;
+    const cards=walls36.map(x=>`<button class="v36-wall-card" data-v36-wall="${x[0]}"><img src="${wallUrl36(x[2])}" alt="${esc36(x[1])}" onerror="this.style.display='none';this.parentElement.classList.add('broken')"><b>${esc36(x[1])}</b></button>`).join('');
+    window.openSimple('خلفيات الدردشة',`<div class="v36-wall-grid">${cards}</div><div class="v36-wall-actions"><button id="v36WallGallery" class="choice-btn">🖼️ اختيار صورة من المعرض</button><button id="v36WallReset" class="choice-btn">↺ الخلفية الافتراضية</button><input id="v36WallInput" type="file" accept="image/*" hidden></div>`,'إغلاق');
+    setTimeout(()=>{
+      document.querySelectorAll('[data-v36-wall]').forEach(b=>b.onclick=()=>{localStorage.setItem('combo_wallpaper',b.dataset.v36Wall);localStorage.removeItem('combo_custom_wallpaper');applyWall36();window.closeSimple?.();toast36('تم تغيير خلفية الدردشة')});
+      q('v36WallGallery')?.addEventListener('click',()=>q('v36WallInput')?.click());
+      q('v36WallReset')?.addEventListener('click',()=>{localStorage.setItem('combo_wallpaper','0');localStorage.removeItem('combo_custom_wallpaper');applyWall36();window.closeSimple?.();toast36('تمت إعادة الخلفية الافتراضية')});
+      q('v36WallInput')?.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{localStorage.setItem('combo_custom_wallpaper',r.result);localStorage.setItem('combo_wallpaper','custom');applyWall36();window.closeSimple?.();toast36('تم وضع الصورة كخلفية')};r.readAsDataURL(f)});
+    },80);
+  }
+
+  function boot36(){bindProfileSave36();bindUsername36();patchCommunityCreator36();window.showWallpaper=showWall36;window.applyChatWallpaper=applyWall36;applyWall36();}
+  boot36();setTimeout(boot36,200);setTimeout(boot36,900);setTimeout(boot36,1800);
+})();
+
+/* ===== ComboApp V37 — final mobile/story/auth/profile/wallpaper repair ===== */
+(function V37(){
+  const q=id=>document.getElementById(id);
+  const toast37=m=>typeof window.toast==='function'?window.toast(m):alert(m);
+  const uid=()=>window.me?.id||window.currentUser?.()?.id||'';
+
+  /* Profile save: never reference profiles.phone. Keep phone locally until the DB column exists. */
+  function bindProfile37(){
+    const b=q('saveProfileBtn'); if(!b||b.dataset.v37==='1')return;
+    const fresh=b.cloneNode(true); b.replaceWith(fresh); fresh.dataset.v37='1';
+    fresh.onclick=async()=>{
+      const id=uid(); if(!id)return toast37('سجّل الدخول الأول');
+      const display_name=(q('profileName')?.value||'').trim();
+      const username=(q('profileUsername')?.value||'').trim().toLowerCase();
+      const phone=(q('profilePhone')?.value||'').replace(/\D/g,'');
+      const bio=(q('profileBio')?.value||'').trim();
+      if(!display_name||!username)return toast37('الاسم واسم المستخدم مطلوبين');
+      if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast37('اسم المستخدم 3-24 حرفًا: إنجليزي وأرقام و _ و . فقط');
+      const uq=await sb.from('profiles').select('id').eq('username',username).neq('id',id).maybeSingle();
+      if(uq.error)return toast37('تعذر التحقق من اسم المستخدم: '+uq.error.message);
+      if(uq.data)return toast37('اسم المستخدم مستخدم بالفعل');
+      const r=await sb.from('profiles').update({display_name,username,bio,last_seen:new Date().toISOString()}).eq('id',id);
+      if(r.error)return toast37('تعذر حفظ البيانات: '+r.error.message);
+      if(phone)localStorage.setItem('combo_profile_phone_'+id,phone);else localStorage.removeItem('combo_profile_phone_'+id);
+      window.me={...window.me,display_name,username,bio,phone:phone||window.me?.phone||null};
+      try{window.renderAvatar?.(window.me.avatar_url,display_name)}catch(_){ }
+      toast37('تم حفظ البيانات بنجاح');
+    };
+  }
+
+  /* Login: don't block the UI on secondary profile/contact/stories loading. */
+  function bindLogin37(){
+    const b=q('loginBtn'); if(!b||b.dataset.v37==='1')return;
+    const fresh=b.cloneNode(true);b.replaceWith(fresh);fresh.dataset.v37='1';
+    fresh.onclick=async()=>{
+      const email=(q('loginEmail')?.value||'').trim(),password=q('loginPassword')?.value||'';
+      if(!email||!password)return toast37('اكتب البريد وكلمة السر');
+      fresh.disabled=true;fresh.textContent='جاري الدخول...';
+      try{
+        const r=await withTimeout(sb.auth.signInWithPassword({email,password}),12000);
+        if(r.error)throw r.error;
+        session=r.data?.session||null;if(!session)throw new Error('تعذر إنشاء جلسة الدخول');
+        await enterApp37Fast();
+      }catch(e){console.error(e);toast37(e?.message||'تعذر تسجيل الدخول');}
+      finally{fresh.disabled=false;fresh.textContent='دخول'}
+    };
+  }
+  async function enterApp37Fast(){
+    if(!session)return;
+    const r=await withTimeout(sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle(),10000);
+    if(r.error)throw new Error('تعذر تحميل الحساب: '+r.error.message);
+    if(r.data)me=r.data;
+    else{
+      const m=session.user.user_metadata||{};
+      const base=(session.user.email||'user').split('@')[0].replace(/[^a-z0-9_]/gi,'').slice(0,24)||'user';
+      let candidate=(m.username||base).toLowerCase().replace(/[^a-z0-9_.]/g,'').slice(0,24)||'user',unique=candidate;
+      for(let n=1;n<=50;n++){
+        const x=await sb.from('profiles').select('id').eq('username',unique).neq('id',session.user.id).maybeSingle();
+        if(!x.data)break;const s=String(n);unique=(candidate.slice(0,24-s.length)+s).slice(0,24);
+      }
+      const payload={id:session.user.id,display_name:m.display_name||'مستخدم',username:unique,avatar_url:null,last_seen:new Date().toISOString()};
+      const x=await sb.from('profiles').upsert(payload,{onConflict:'id'});
+      if(x.error)throw new Error('تعذر تجهيز الحساب: '+x.error.message);
+      me=payload;
+    }
+    q('authScreen')?.classList.add('hidden');q('appScreen')?.classList.remove('hidden');
+    // Secondary work is intentionally non-blocking.
+    [
+      ['الإعدادات',loadCloudSettings],['جهات الاتصال',loadCloudContacts],['الملف الشخصي',loadProfile],
+      ['آخر ظهور',touchLastSeen],['المحادثات',loadChats],['الحالات',loadStories],['صارحني',loadSarhnyInbox]
+    ].forEach(([name,fn])=>{try{safeAppTask(name,fn)}catch(_){}});
+    try{updateNotificationBell()}catch(_){ }
+    toast37('تم تسجيل الدخول');
+  }
+
+  /* Password reset: show the actual Supabase result/error and use the current GitHub Pages URL. */
+  function bindReset37(){
+    const b=q('forgotBtn');if(!b||b.dataset.v37==='1')return;
+    const fresh=b.cloneNode(true);b.replaceWith(fresh);fresh.dataset.v37='1';
+    fresh.onclick=async()=>{
+      const email=(q('loginEmail')?.value||'').trim();
+      if(!email)return toast37('اكتب بريدك في خانة البريد أولًا');
+      fresh.disabled=true;fresh.textContent='جاري الإرسال...';
+      try{
+        const redirectTo=new URL(APP_BASE_URL,location.href).href;
+        const r=await withTimeout(sb.auth.resetPasswordForEmail(email,{redirectTo}),15000);
+        if(r.error)throw r.error;
+        toast37('تم قبول طلب إعادة كلمة السر. لو لم تصل الرسالة، راجع Spam أو حد إرسال البريد في Supabase.');
+      }catch(e){console.error(e);toast37('تعذر إرسال رسالة تغيير كلمة السر: '+(e?.message||e));}
+      finally{fresh.disabled=false;fresh.textContent='نسيت كلمة السر؟'}
+    };
+  }
+
+  /* Wallpaper: bind the actual profile button, and re-apply after every chat opens. */
+  const walls=[
+    ['img01','غروب وجسر','wall_01.jpg'],['img02','أسد وغزال','wall_02.jpg'],['img03','ورد وهدية','wall_03.jpg'],['img04','Porsche','wall_04.jpg'],['img05','برج إيفل','wall_05.jpg'],
+    ['img06','سماء درامية','wall_06.jpg'],['img07','قمر وشجرة','wall_07.jpg'],['img08','آيات وأذكار','wall_08.jpg'],['img09','قط كيوت','wall_09.jpg'],['img10','One Piece','wall_10.jpg'],
+    ['img11','ساموراي والزهور','wall_11.jpg'],['img12','ألوان مكسورة','wall_12.jpg'],['img13','ستايل كلاسيكي','wall_13.jpg'],['img14','Focus on yourself','wall_14.jpg'],['img15','عيون بالأسود','wall_15.jpg'],
+    ['img16','Spider-Man','wall_16.jpg'],['img17','غوريلا','wall_17.jpg'],['img18','خلفية طريفة','wall_18.jpg'],['img19','أنمي','wall_19.jpg'],['img20','ستايل أبيض وأسود','wall_20.jpg']
+  ];
+  const base=()=>location.origin+(location.pathname.endsWith('/')?location.pathname:location.pathname+'/');
+  const wallUrl=f=>base()+'assets/wallpapers_custom/'+f;
+  const colors={
+    '0':'#07171e','1':'radial-gradient(#00e6b044 1px,transparent 1px)','2':'linear-gradient(135deg,#062a27,#03161b)','3':'linear-gradient(135deg,#071b38,#031016)','4':'#000',
+    '5':'linear-gradient(135deg,#4d1e3b,#17101c)','6':'linear-gradient(135deg,#8a195f,#291028)','7':'linear-gradient(135deg,#5d101d,#17070b)','8':'linear-gradient(135deg,#40205d,#100a19)','9':'linear-gradient(135deg,#624b16,#171108)','10':'linear-gradient(135deg,#0b4d64,#06131b)','11':'radial-gradient(#ff4d7d33 2px,transparent 2px),radial-gradient(#00e6b033 2px,transparent 2px)'
+  };
+  const names={'0':'افتراضي','1':'نقاط نيون','2':'أخضر زجاجي','3':'أزرق ليلي','4':'أسود سادة','5':'وردي ناعم','6':'فوشيا','7':'أحمر غامق','8':'بنفسجي','9':'ذهبي','10':'سماوي','11':'قلب ونقاط'};
+  function applyWall37(){
+    const box=q('messagesBox');if(!box)return;
+    const v=localStorage.getItem('combo_wallpaper')||'0';
+    box.className='messages';box.style.backgroundImage='';box.style.backgroundSize='cover';box.style.backgroundPosition='center';box.style.backgroundRepeat='no-repeat';box.style.backgroundAttachment='scroll';
+    if(v==='custom'){const d=localStorage.getItem('combo_custom_wallpaper');if(d)box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${d}")`;return}
+    const w=walls.find(x=>x[0]===v);
+    if(w){box.style.backgroundImage=`linear-gradient(#03101666,#03101666),url("${wallUrl(w[2])}")`;return}
+    if(colors[v]){box.style.background=colors[v];if(v==='1'||v==='11'){box.style.backgroundSize='18px 18px'}return}
+  }
+  function showWall37(){
+    if(typeof window.openSimple!=='function')return toast37('تعذر فتح خلفيات الدردشة');
+    const colorCards=Object.keys(colors).map(k=>`<button type="button" class="v37-wall-color" data-wall37="${k}"><span style="background:${colors[k]}"></span><b>${names[k]}</b></button>`).join('');
+    const imageCards=walls.map(w=>`<button type="button" class="v37-wall-image" data-wall37="${w[0]}"><img src="${wallUrl(w[2])}" alt="${w[1]}" loading="eager"><b>${w[1]}</b></button>`).join('');
+    window.openSimple('خلفيات الدردشة',`<h3 style="margin:4px 0 8px">ألوان جاهزة</h3><div class="v37-wall-color-grid">${colorCards}</div><h3 style="margin:14px 0 8px">الصور</h3><div class="v37-wall-image-grid">${imageCards}</div><div class="v37-wall-actions"><button id="v37WallGallery" class="choice-btn">🖼️ اختيار صورة من المعرض</button><button id="v37WallReset" class="choice-btn">↺ إزالة الخلفية</button><input id="v37WallInput" type="file" accept="image/*" hidden></div>`,'إغلاق');
+    setTimeout(()=>{
+      document.querySelectorAll('[data-wall37]').forEach(b=>b.onclick=()=>{localStorage.setItem('combo_wallpaper',b.dataset.wall37);localStorage.removeItem('combo_custom_wallpaper');applyWall37();window.closeSimple?.();toast37('تم تغيير خلفية الدردشة')});
+      q('v37WallGallery')?.addEventListener('click',()=>q('v37WallInput')?.click());
+      q('v37WallReset')?.addEventListener('click',()=>{localStorage.setItem('combo_wallpaper','0');localStorage.removeItem('combo_custom_wallpaper');applyWall37();window.closeSimple?.();toast37('تمت إزالة الخلفية')});
+      q('v37WallInput')?.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{localStorage.setItem('combo_custom_wallpaper',r.result);localStorage.setItem('combo_wallpaper','custom');applyWall37();window.closeSimple?.();toast37('تم وضع الصورة كخلفية')};r.readAsDataURL(f)});
+    },80);
+  }
+  function bindWallpaper37(){const b=q('wallpaperBtn');if(!b)return;const fresh=b.cloneNode(true);b.replaceWith(fresh);fresh.onclick=showWall37;window.showWallpaper=showWall37;window.applyChatWallpaper=applyWall37;applyWall37();}
+
+  /* Re-apply the chosen wallpaper after the existing openChat routine creates messagesBox. */
+  function bindOpenChat37(){
+    const old=window.openChat;if(typeof old!=='function'||old.__v37)return;
+    const wrapped=async function(c){const r=await old(c);setTimeout(applyWall37,30);return r};wrapped.__v37=true;window.openChat=wrapped;
+  }
+
+  /* Story: force a phone-safe layout and keep Publish + Privacy visible. */
+  function fixStory37(){
+    const modal=q('storyComposer');if(!modal)return;
+    const post=q('storyPostTop'),privacy=q('storyPrivacyBtn'),colorsRow=modal.querySelector('.story-colors'),tools=modal.querySelector('.story-bottom-tools');
+    if(post){post.classList.remove('hidden');post.style.display='inline-flex';post.style.visibility='visible';post.style.opacity='1';post.textContent='نشر';}
+    if(colorsRow&&tools){tools.parentNode.insertBefore(colorsRow,tools);}
+    if(privacy&&tools){tools.parentNode.insertBefore(privacy,tools.nextSibling);}
+    modal.classList.add('v37-story-fixed');
+    const canvas=q('storyCanvas');if(canvas)canvas.classList.add('v37-story-canvas');
+  }
+
+  function boot37(){bindProfile37();bindLogin37();bindReset37();bindWallpaper37();bindOpenChat37();fixStory37();}
+  boot37();setTimeout(boot37,250);setTimeout(boot37,900);setTimeout(boot37,2000);
+})();

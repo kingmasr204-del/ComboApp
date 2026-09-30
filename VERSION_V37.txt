@@ -1,0 +1,6 @@
+ComboApp V37 — final repair
+- Profile save no longer references profiles.phone.
+- Login does not block on secondary cloud loading and new-profile fallback never inserts phone.
+- Password reset shows actual delivery/provider errors and uses current GitHub Pages redirect.
+- Wallpaper picker is directly bound to the profile button; all 20 supplied wallpapers and built-in colors are selectable and re-applied after opening a chat.
+- Story composer is constrained to 100dvh on phones with Publish and Story Privacy always visible.
