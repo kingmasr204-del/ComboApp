@@ -271,3 +271,15 @@ input,textarea,.modal-search{background:#061a21!important;border-color:#15515a!i
 .v37-story-fixed .story-canvas-media,.v37-story-fixed .story-canvas-media img,.v37-story-fixed .story-canvas-media video{max-width:100%!important;max-height:100%!important}
 .v37-wall-color-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-height:170px;overflow:auto;padding:3px}.v37-wall-color{border:1px solid #174149;background:#071820;color:#fff;border-radius:12px;padding:7px 4px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10px}.v37-wall-color span{width:42px;height:32px;border-radius:8px;border:1px solid #ffffff33}.v37-wall-image-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:330px;overflow:auto;padding:3px}.v37-wall-image{border:1px solid #174149;background:#071820;color:#fff;border-radius:12px;padding:4px;overflow:hidden}.v37-wall-image img{display:block;width:100%;height:82px;object-fit:cover;border-radius:8px}.v37-wall-image b{display:block;font-size:9px;padding:4px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v37-wall-actions{margin-top:8px}
 @media(max-width:430px){.v37-wall-image-grid{grid-template-columns:repeat(2,1fr);max-height:280px}.v37-wall-color-grid{grid-template-columns:repeat(4,1fr);max-height:150px}.v37-story-fixed .story-top{padding-inline:7px!important}.v37-story-fixed .story-top strong{font-size:16px!important}.v37-story-fixed .story-post-top{padding:7px 11px!important}}
+
+/* V38: mobile-safe story composer */
+.v38-story-mobile{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;display:flex!important;align-items:stretch!important;justify-content:center!important;z-index:99999!important}
+.v38-story-mobile .story-composer{width:100%!important;height:100%!important;max-height:100%!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;box-sizing:border-box!important}
+.v38-story-mobile .story-top{flex:0 0 auto!important;min-height:70px!important}
+.v38-story-mobile .story-canvas{flex:1 1 auto!important;min-height:120px!important;height:auto!important;overflow:hidden!important}
+.v38-story-mobile .story-bottom-tools,.v38-story-mobile .story-privacy-btn,.v38-story-mobile .story-colors{flex:0 0 auto!important}
+.v38-story-mobile .story-privacy-btn{margin:8px 14px!important;width:calc(100% - 28px)!important;min-height:58px!important;display:block!important;position:relative!important;z-index:3!important}
+.v38-story-mobile .story-colors{max-height:74px!important;overflow-x:auto!important;overflow-y:hidden!important}
+.v38-story-mobile .story-bottom-tools{min-height:76px!important}
+.v38-story-mobile #storyPostTop,.v38-story-mobile #closeStoryComposer,.v38-story-mobile #storyPrivacyBtn{pointer-events:auto!important}
+@media(max-width:480px){.v38-story-mobile .story-top{padding:10px 14px!important}.v38-story-mobile .story-top strong{font-size:20px!important}.v38-story-mobile .story-post-top{min-width:64px!important;min-height:46px!important}.v38-story-mobile .story-canvas textarea{font-size:30px!important}}

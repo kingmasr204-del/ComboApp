@@ -3297,3 +3297,82 @@ init();
   function boot37(){bindProfile37();bindLogin37();bindReset37();bindWallpaper37();bindOpenChat37();fixStory37();}
   boot37();setTimeout(boot37,250);setTimeout(boot37,900);setTimeout(boot37,2000);
 })();
+
+/* ===== ComboApp V38 — harden mobile story controls + profile save ===== */
+(function V38(){
+  const q=id=>document.getElementById(id);
+  const t=m=>typeof window.toast==='function'?window.toast(m):alert(m);
+  const uid=()=>window.me?.id||'';
+
+  /* A single, global profile saver. It never sends phone to profiles. */
+  window.saveProfileV38=async function(){
+    const id=uid(); if(!id)return t('سجّل الدخول الأول');
+    const display_name=(q('profileName')?.value||'').trim();
+    const username=(q('profileUsername')?.value||'').trim().toLowerCase();
+    const bio=(q('profileBio')?.value||'').trim();
+    const phone=(q('profilePhone')?.value||'').replace(/\D/g,'');
+    if(!display_name||!username)return t('الاسم واسم المستخدم مطلوبين');
+    if(!/^[a-z0-9_.]{3,24}$/.test(username))return t('اسم المستخدم 3-24 حرفًا: إنجليزي وأرقام و _ و . فقط');
+    try{
+      const uq=await sb.from('profiles').select('id').eq('username',username).neq('id',id).maybeSingle();
+      if(uq.error)throw uq.error;
+      if(uq.data)return t('اسم المستخدم مستخدم بالفعل');
+      const r=await sb.from('profiles').update({display_name,username,bio,last_seen:new Date().toISOString()}).eq('id',id);
+      if(r.error)throw r.error;
+      localStorage.setItem('combo_profile_phone_'+id,phone);
+      window.me={...window.me,display_name,username,bio,phone};
+      t('تم حفظ البيانات بنجاح');
+    }catch(e){console.error(e);t('تعذر حفظ البيانات: '+(e?.message||e));}
+  };
+  window.saveProfile=window.saveProfileV38;
+
+  /* Story controls are delegated at document level so they survive every UI patch. */
+  function storyVisible(){const m=q('storyComposer');return m&&!m.classList.contains('hidden');}
+  async function post(){
+    if(!storyVisible())return;
+    const text=(q('storyText')?.value||'').trim();
+    const caption=(q('storyCaption')?.value||'').trim();
+    const file=window.storyFile||null;
+    if(!text&&!file)return t('اكتب حاجة أو اختار صورة/فيديو/صوت');
+    const btn=q('storyPostTop'); if(btn){btn.disabled=true;btn.textContent='جاري النشر...';}
+    try{
+      if(typeof window.publishStory==='function' && window.publishStory!==post){
+        /* The original function already handles media upload/privacy correctly. */
+        await window.publishStory();
+      }else{
+        const me=window.me;if(!me?.id)throw new Error('سجّل الدخول الأول');
+        let media_path=null,media_type=null;
+        if(file){
+          media_type=file.type?.startsWith('image/')?'image':file.type?.startsWith('video/')?'video':file.type?.startsWith('audio/')?'audio':null;
+          if(!media_type)throw new Error('نوع الملف غير مدعوم');
+          const path=`${me.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+          const up=await sb.storage.from('stories').upload(path,file,{upsert:false});
+          if(up.error)throw up.error; media_path=path;
+        }
+        const mode=window.storyPrivacyMode||'contacts';
+        const payload={user_id:me.id,content:file?caption:text,media_path,media_type,expires_at:new Date(Date.now()+86400000).toISOString(),visibility:mode==='contacts_except'?'contacts':mode,excluded_user_ids:window.storyExcludedIds||[],selected_user_ids:window.storySelectedIds||[]};
+        const r=await sb.from('stories').insert(payload);if(r.error)throw r.error;
+        if(typeof window.closeStoryComposer==='function')window.closeStoryComposer();
+        t('تم نشر الستوري');
+      }
+    }catch(e){console.error(e);t('تعذر نشر الستوري: '+(e?.message||e));}
+    finally{if(btn){btn.disabled=false;btn.textContent='نشر';}}
+  }
+  window.publishStoryV38=post;
+  document.addEventListener('click',function(e){
+    const id=e.target?.id;
+    if(id==='storyPostTop'){e.preventDefault();e.stopImmediatePropagation();post();return;}
+    if(id==='closeStoryComposer'){e.preventDefault();e.stopImmediatePropagation();q('storyComposer')?.classList.add('hidden');return;}
+    if(id==='storyPrivacyBtn'){e.preventDefault();e.stopImmediatePropagation();if(typeof window.openStoryPrivacy==='function')window.openStoryPrivacy();return;}
+  },true);
+
+  function fix(){
+    const m=q('storyComposer');if(!m)return;
+    m.classList.add('v38-story-mobile');
+    const postBtn=q('storyPostTop');if(postBtn){postBtn.type='button';postBtn.style.display='inline-flex';postBtn.style.visibility='visible';postBtn.style.pointerEvents='auto';}
+    const close=q('closeStoryComposer');if(close){close.type='button';close.style.pointerEvents='auto';}
+    const privacy=q('storyPrivacyBtn');if(privacy){privacy.type='button';privacy.style.display='block';privacy.style.pointerEvents='auto';}
+    const c=q('storyCanvas');if(c){c.style.minHeight='0';c.style.flex='1 1 auto';}
+  }
+  fix();setTimeout(fix,100);setTimeout(fix,500);setTimeout(fix,1500);
+})();
