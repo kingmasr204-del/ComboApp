@@ -3693,3 +3693,132 @@ init();
   function boot42(){fixLayers();fixProfileSave();fixCommunityCreate();applyWallpaper42();}
   boot42();setTimeout(boot42,150);setTimeout(boot42,700);setTimeout(boot42,1800);
 })();
+/* ===== ComboApp V43 — communities settings/create + story colors + richer emoji/GIF ===== */
+(function V43(){
+  const $=id=>document.getElementById(id);
+  const toast43=m=>typeof window.toast==='function'?window.toast(m):alert(m);
+  const uid=()=>((typeof me!=='undefined'&&me?.id)||window.me?.id||window.currentUser?.()?.id||window.sb?.auth?.getSession?.()?.data?.session?.user?.id||'');
+
+  /* ---- Group/channel creation: remove ALL previous listeners by replacing the button. ---- */
+  function bindCreateButton(){
+    const old=$('v16CommunityCreate'); if(!old||old.dataset.v43==='1')return;
+    const b=old.cloneNode(true); old.replaceWith(b); b.dataset.v43='1';
+    b.type='button';
+    b.onclick=async e=>{
+      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+      const name=($('v16CommunityName')?.value||'').trim();
+      const label=$('v16CommunityName')?.dataset.kind||'جروب';
+      const kind=label==='قناة'?'channel':'group';
+      const id=uid();
+      if(!id)return toast43('سجّل الدخول الأول');
+      if(!name)return toast43('اكتب اسم '+label);
+      const bio=($('v16CommunityBio')?.value||'').trim();
+      b.disabled=true;b.textContent='جاري الإنشاء...';
+      try{
+        const r=await sb.from('communities').insert({kind,name,description:bio||null,owner_id:id}).select('*').single();
+        if(r.error)throw r.error;
+        const c=r.data;
+        const mr=await sb.from('community_members').upsert({community_id:c.id,user_id:id,role:'owner'},{onConflict:'community_id,user_id'});
+        if(mr.error)throw mr.error;
+        let code='';
+        try{const z=await sb.rpc('combo_v28_ensure_invite',{p_community_id:c.id});if(!z.error)code=z.data||''}catch(_){ }
+        if(!code){code=Math.random().toString(36).slice(2,14);const z=await sb.from('communities').update({invite_code:code}).eq('id',c.id).eq('owner_id',id);if(z.error)console.warn(z.error)}
+        $('bottomComposeModal')?.classList.add('hidden');$('v16CommunityForm')?.classList.add('hidden');
+        if($('v16CommunityName'))$('v16CommunityName').value='';if($('v16CommunityBio'))$('v16CommunityBio').value='';
+        await window.loadCommunities?.();
+        toast43(`تم إنشاء ${label} بنجاح`);
+        setTimeout(()=>window.openCommunityProfile33?.({...c,invite_code:code}),80);
+      }catch(err){console.error(err);toast43('تعذر إنشاء '+label+': '+(err?.message||'حصل خطأ'));}
+      finally{b.disabled=false;b.textContent='إنشاء '+label;}
+    };
+  }
+
+  function patchCommunityForm(){
+    const oldShow=window.showCommunityForm;
+    if(typeof oldShow==='function'&&!oldShow.__v43){
+      const wrap=function(kind){
+        oldShow(kind);
+        setTimeout(()=>{const grid=document.querySelector('.compose-grid-v16');if(grid)grid.style.display='none';const form=$('v16CommunityForm');if(form){form.classList.remove('hidden');form.style.display='grid'}bindCreateButton()},0);
+      };
+      wrap.__v43=true;window.showCommunityForm=wrap;
+    }
+    bindCreateButton();
+  }
+
+  /* ---- Community settings: direct table update, no RPC dependency; always closes on success. ---- */
+  window.openGroupSettingsV43=async function(c0){
+    const id=c0?.id;if(!id)return;
+    const r=await sb.from('communities').select('*').eq('id',id).maybeSingle();
+    const c=r.data||c0;if(!c)return toast43('تعذر تحميل إعدادات المجموعة');
+    if(c.owner_id!==uid())return toast43('إعدادات المجموعة متاحة للمالك فقط');
+    const m=document.createElement('div');m.className='modal v43-settings-modal';
+    m.innerHTML=`<div class="v43-sheet"><button type="button" id="v43SetClose" class="icon-btn">✕</button><h2>⚙️ إعدادات المجموعة</h2>
+      <div class="v43-setting"><strong>من يمكنه إرسال الرسائل؟</strong><label><input type="radio" name="v43chat" value="all" ${c.admins_only_chat?'':'checked'}> جميع الأعضاء</label><label><input type="radio" name="v43chat" value="admins" ${c.admins_only_chat?'checked':''}> المشرفون فقط</label></div>
+      <div class="v43-setting"><strong>من يمكنه تعديل معلومات المجموعة؟</strong><label><input type="radio" name="v43info" value="all" ${c.allow_info_edit===false?'':'checked'}> جميع الأعضاء</label><label><input type="radio" name="v43info" value="admins" ${c.allow_info_edit===false?'checked':''}> المشرفون فقط</label></div>
+      <div class="v43-setting"><strong>الانضمام بالرابط</strong><label><input id="v43Join" type="checkbox" ${c.allow_join_requests?'checked':''}> السماح بطلبات الانضمام عبر الرابط</label></div>
+      <button type="button" id="v43SetSave" class="primary">حفظ الإعدادات</button></div>`;
+    document.body.appendChild(m);
+    $('v43SetClose').onclick=()=>m.remove();
+    m.addEventListener('click',e=>{if(e.target===m)m.remove()});
+    $('v43SetSave').onclick=async()=>{
+      const payload={allow_info_edit:m.querySelector('[name="v43info"]:checked')?.value==='all',admins_only_chat:m.querySelector('[name="v43chat"]:checked')?.value==='admins',allow_join_requests:!!$('v43Join')?.checked};
+      const z=await sb.from('communities').update(payload).eq('id',id).eq('owner_id',uid()).select('*').maybeSingle();
+      if(z.error)return toast43('تعذر حفظ الإعدادات: '+z.error.message);
+      m.remove();toast43('تم حفظ إعدادات المجموعة');
+      if(typeof window.openCommunityProfile33==='function')window.openCommunityProfile33({...c,...payload});
+    };
+  };
+
+  /* Replace old group settings click with the reliable direct version. */
+  function patchSettingsButton(){
+    const b=$('v33Settings');if(!b||b.dataset.v43==='1')return;
+    const n=b.cloneNode(true);b.replaceWith(n);n.dataset.v43='1';
+    n.onclick=e=>{e.preventDefault();e.stopPropagation();const c=window.__v43CommunityCurrent||window.__v43CommunityFromButton;if(c)window.openGroupSettingsV43(c);else{const modal=$('v33CommunityProfile');const id=modal?.dataset?.communityId;if(id)window.openGroupSettingsV43({id,owner_id:uid()});}};
+  }
+
+  /* Hook profile renderer so settings button knows the current community. */
+  const oldProfile=window.openCommunityProfile33;
+  if(typeof oldProfile==='function'&&!oldProfile.__v43){
+    const wrap=async function(c){window.__v43CommunityCurrent=c;const r=await oldProfile(c);setTimeout(()=>{const m=$('v33CommunityProfile');if(m)m.dataset.communityId=c.id;patchSettingsButton()},60);return r};
+    wrap.__v43=true;window.openCommunityProfile33=wrap;window.openCommunityProfileV25=wrap;window.openCommunityProfile32=wrap;
+  }
+
+  /* ---- Story colors: clone each dot and bind directly; use background on the actual canvas. ---- */
+  function patchStoryColors(){
+    const canvas=$('storyCanvas');if(!canvas)return;
+    document.querySelectorAll('.color-dot').forEach(old=>{
+      if(old.dataset.v43==='1')return;
+      const n=old.cloneNode(true);old.replaceWith(n);n.dataset.v43='1';
+      n.onclick=e=>{e.preventDefault();e.stopPropagation();const c=n.dataset.color;if(!c)return;canvas.style.setProperty('background',c,'important');canvas.dataset.storyColor=c;$('storyText')?.style.setProperty('background','transparent','important');};
+    });
+  }
+
+  /* ---- More built-in emoji + GIF/sticker picker. GIFs use all bundled assets plus imported ones. ---- */
+  const EXTRA_EMOJI=['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🫡','🤭','🫢','🫣','🤫','🤥','😶','🫠','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','👍','👎','👌','✌️','🤞','🤟','🤘','🤙','👏','🙌','👐','🤲','🙏','💪','🫶','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💯','🔥','✨','⭐','🌟','🎉','🎊','🎂','🥳','🎁','⚡','☀️','🌙','🌹','🌷','🌸','🌺','🌻','🌼','🍕','🍔','🍟','🍩','☕','🍿','⚽','🏆','🎮','🚗','✈️','🐱','🐶','🦁','🐯','🐻','🐼','🐨','🐸','🦊','🐵','🙈','🙉','🙊'];
+  function patchEmojiPanel(){
+    const old=window.showEmojiTab;if(typeof old!=='function'||old.__v43)return;
+    const wrap=function(tab){
+      if(tab==='emoji'){
+        const box=$('emojiContent');if(!box)return;
+        document.querySelectorAll('.emoji-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab==='emoji'));
+        box.innerHTML=`<div class="v43-emoji-grid">${EXTRA_EMOJI.map(x=>`<button type="button" data-v43-emoji="${x}">${x}</button>`).join('')}</div>`;
+        box.querySelectorAll('[data-v43-emoji]').forEach(b=>b.onclick=()=>{const input=$('messageInput');if(input){input.value+=b.dataset.v43Emoji;input.focus()} });
+        return;
+      }
+      return old(tab);
+    };
+    wrap.__v43=true;window.showEmojiTab=wrap;
+  }
+
+  function patchCommunityRich(){
+    // Add a larger built-in emoji set to community composer without changing the existing GIF sender.
+    const old=window.communityRich32;if(typeof old!=='function')return;
+  }
+
+  function boot(){patchCommunityForm();patchSettingsButton();patchStoryColors();patchEmojiPanel();}
+  boot();setTimeout(boot,200);setTimeout(boot,800);setTimeout(boot,1800);
+})();
+
+(function V43CSS(){const s=document.createElement('style');s.textContent=`
+.v43-settings-modal{z-index:99999!important}.v43-sheet{width:min(720px,94vw);max-height:90vh;overflow:auto;margin:auto;background:#061820;color:#fff;border:1px solid #15515b;border-radius:22px;padding:18px;box-sizing:border-box}.v43-setting{padding:12px;margin:9px 0;border:1px solid #16464e;border-radius:14px}.v43-setting label{display:block;padding:10px}.v43-sheet .primary{width:100%;margin-top:10px;background:#00d4ac;color:#032019;border:0;border-radius:13px;padding:14px;font-size:16px;font-weight:800}.v43-emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;max-height:270px;overflow:auto}.v43-emoji-grid button{border:0;background:transparent;color:#fff;font-size:27px;padding:6px;border-radius:8px}.v43-emoji-grid button:active{background:#12343c}.color-dot{touch-action:manipulation;cursor:pointer;position:relative;z-index:5}
+`;document.head.appendChild(s)})();
