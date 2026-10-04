@@ -3459,3 +3459,71 @@ init();
   boot();setTimeout(boot,150);setTimeout(boot,600);setTimeout(boot,1500);setTimeout(boot,3000);
   window.ComboAppV39={closeStory,openStory,publish,forceHome};
 })();
+
+/* ===== ComboApp V41 — story composer NEVER opens on app launch ===== */
+(function V41(){
+  const q=id=>document.getElementById(id);
+  function closeStoryHard(){
+    const m=q('storyComposer');
+    if(!m)return;
+    m.dataset.open='0';
+    m.classList.add('hidden');
+    m.style.display='none';
+    m.style.visibility='hidden';
+    m.style.pointerEvents='none';
+    m.setAttribute('aria-hidden','true');
+  }
+  function openStoryHard(){
+    const m=q('storyComposer');
+    if(!m)return;
+    m.dataset.open='1';
+    m.classList.remove('hidden');
+    m.style.display='grid';
+    m.style.visibility='visible';
+    m.style.pointerEvents='auto';
+    m.setAttribute('aria-hidden','false');
+    try{ window.openStoryComposer?.(); }catch(e){ console.warn(e); }
+    m.dataset.open='1';
+  }
+  function bind(){
+    const close=q('closeStoryComposer'), post=q('storyPostTop'), add=q('addStoryBtn'), privacy=q('storyPrivacyBtn');
+    if(close){
+      close.type='button';
+      close.onclick=e=>{e.preventDefault();e.stopPropagation();closeStoryHard();};
+    }
+    if(post){
+      post.type='button';
+      post.onclick=async e=>{
+        e.preventDefault();e.stopPropagation();
+        try{ await window.publishStory?.(); }
+        catch(err){ console.error(err); window.toast?.('تعذر نشر الستوري: '+(err?.message||err)); }
+      };
+    }
+    if(privacy){
+      privacy.type='button';
+      privacy.onclick=e=>{
+        e.preventDefault();e.stopPropagation();
+        try{ window.openStoryPrivacy?.(); }catch(err){ window.toast?.(err?.message||'تعذر فتح الخصوصية'); }
+      };
+    }
+    if(add){
+      add.type='button';
+      add.onclick=e=>{e.preventDefault();e.stopPropagation();openStoryHard();};
+    }
+  }
+  // Critical: force the composer closed before/after auth boot and on every page load.
+  function boot(){
+    bind();
+    closeStoryHard();
+    const app=q('appScreen');
+    if(app && !app.classList.contains('hidden')){
+      q('homePage')?.classList.add('active');
+      document.querySelectorAll('.page').forEach(p=>{if(p.id!=='homePage')p.classList.remove('active');});
+      document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page==='homePage'));
+    }
+  }
+  boot();
+  setTimeout(boot,50);setTimeout(boot,200);setTimeout(boot,700);setTimeout(boot,1500);setTimeout(boot,3000);
+  window.ComboAppV41={closeStoryHard,openStoryHard};
+})();
+
