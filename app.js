@@ -3376,3 +3376,86 @@ init();
   }
   fix();setTimeout(fix,100);setTimeout(fix,500);setTimeout(fix,1500);
 })();
+
+/* ===== ComboApp V39 — login always opens Home + hard-wired Story controls ===== */
+(function V39(){
+  const q=id=>document.getElementById(id);
+  const toast39=m=>typeof window.toast==='function'?window.toast(m):alert(m);
+  function closeStory(){
+    const m=q('storyComposer');
+    if(m){m.classList.add('hidden');m.style.display='none';}
+    try{ if(typeof window.closeStoryComposer==='function') window.closeStoryComposer(); }catch(_){ }
+    const m2=q('storyComposer'); if(m2){m2.classList.add('hidden');m2.style.display='none';}
+  }
+  function openStory(){
+    const m=q('storyComposer');
+    if(!m)return;
+    m.classList.remove('hidden');m.style.display='grid';m.style.pointerEvents='auto';
+    try{ if(typeof window.openStoryComposer==='function') window.openStoryComposer(); }catch(_){ }
+    const m2=q('storyComposer'); if(m2){m2.classList.remove('hidden');m2.style.display='grid';m2.style.pointerEvents='auto';}
+  }
+  async function publish(){
+    const m=q('storyComposer'); if(!m||m.classList.contains('hidden'))return;
+    const text=(q('storyText')?.value||'').trim();
+    const caption=(q('storyCaption')?.value||'').trim();
+    const file=window.__comboStoryFile || null;
+    if(!text&&!file){
+      // Original storyFile is a lexical variable, so use the original publisher when no exposed file exists.
+      try{ if(typeof window.publishStory==='function'){await window.publishStory();return;} }catch(e){console.error(e);toast39('تعذر نشر الستوري: '+(e?.message||e));}
+      return;
+    }
+    try{
+      if(typeof window.publishStory==='function'){
+        await window.publishStory();
+        return;
+      }
+      throw new Error('دالة نشر الستوري غير متاحة');
+    }catch(e){console.error(e);toast39('تعذر نشر الستوري: '+(e?.message||e));}
+  }
+  function bind(){
+    const close=q('closeStoryComposer'),post=q('storyPostTop'),privacy=q('storyPrivacyBtn'),add=q('addStoryBtn');
+    if(close){close.type='button';close.onclick=e=>{e.preventDefault();e.stopPropagation();closeStory();};close.style.pointerEvents='auto';close.style.zIndex='999';}
+    if(post){post.type='button';post.onclick=e=>{e.preventDefault();e.stopPropagation();publish();};post.style.pointerEvents='auto';post.style.zIndex='999';post.style.display='inline-flex';}
+    if(privacy){privacy.type='button';privacy.onclick=e=>{e.preventDefault();e.stopPropagation();try{window.openStoryPrivacy?.();}catch(err){toast39(err?.message||'تعذر فتح خصوصية الحالة');}};privacy.style.pointerEvents='auto';privacy.style.zIndex='999';}
+    if(add){add.type='button';add.onclick=e=>{e.preventDefault();e.stopPropagation();openStory();};}
+  }
+  function forceHome(){
+    closeStory();
+    try{ if(typeof window.go==='function') window.go('homePage'); }catch(_){ }
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='homePage'));
+    document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page==='homePage'));
+  }
+  function bindLoginHome(){
+    const b=q('loginBtn');
+    if(!b||b.dataset.v39==='1')return;
+    const old=b.cloneNode(true);b.replaceWith(old);old.dataset.v39='1';
+    old.onclick=async e=>{
+      e.preventDefault();
+      const email=(q('loginEmail')?.value||'').trim(),password=q('loginPassword')?.value||'';
+      if(!email||!password){toast39('اكتب البريد وكلمة السر');return;}
+      old.disabled=true;old.textContent='جاري الدخول...';
+      try{
+        const r=await withTimeout(sb.auth.signInWithPassword({email,password}),12000);
+        if(r.error)throw r.error;
+        session=r.data?.session||null;
+        if(!session)throw new Error('تعذر إنشاء جلسة الدخول');
+        // Do not allow a stale Story modal to survive account switching/reload.
+        forceHome();
+        if(typeof enterApp37Fast==='function') await enterApp37Fast();
+        else if(typeof enterApp==='function') await enterApp();
+        forceHome();
+        toast39('تم تسجيل الدخول');
+      }catch(err){console.error(err);toast39(err?.message||'تعذر تسجيل الدخول');}
+      finally{old.disabled=false;old.textContent='دخول';}
+    };
+  }
+  // Any authenticated boot/reload must start at Chats, never with the Story composer open.
+  function boot(){
+    bind();bindLoginHome();
+    const app=q('appScreen');
+    if(app&&!app.classList.contains('hidden'))forceHome();
+    else closeStory();
+  }
+  boot();setTimeout(boot,150);setTimeout(boot,600);setTimeout(boot,1500);setTimeout(boot,3000);
+  window.ComboAppV39={closeStory,openStory,publish,forceHome};
+})();

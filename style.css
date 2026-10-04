@@ -283,3 +283,9 @@ input,textarea,.modal-search{background:#061a21!important;border-color:#15515a!i
 .v38-story-mobile .story-bottom-tools{min-height:76px!important}
 .v38-story-mobile #storyPostTop,.v38-story-mobile #closeStoryComposer,.v38-story-mobile #storyPrivacyBtn{pointer-events:auto!important}
 @media(max-width:480px){.v38-story-mobile .story-top{padding:10px 14px!important}.v38-story-mobile .story-top strong{font-size:20px!important}.v38-story-mobile .story-post-top{min-width:64px!important;min-height:46px!important}.v38-story-mobile .story-canvas textarea{font-size:30px!important}}
+
+/* V39: story controls must remain clickable on phones. */
+#storyComposer.v38-story-mobile,#storyComposer.v37-story-fixed{pointer-events:auto!important;}
+#storyComposer.v38-story-mobile .story-top,#storyComposer.v38-story-mobile .story-bottom-tools,#storyComposer.v38-story-mobile .story-privacy-btn,#storyComposer.v38-story-mobile .story-colors{position:relative;z-index:100!important;}
+#storyComposer.v38-story-mobile .story-post-top,#storyComposer.v38-story-mobile #closeStoryComposer,#storyComposer.v38-story-mobile #storyPrivacyBtn{pointer-events:auto!important;touch-action:manipulation!important;}
+@media(max-width:600px){#storyComposer .story-composer{width:100vw!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;}#storyComposer .story-canvas{min-height:0!important;flex:1 1 auto!important;}}
