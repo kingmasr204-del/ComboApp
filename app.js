@@ -3,6 +3,12 @@ const SUPABASE_ANON_KEY="sb_publishable_6K8b1SYA5zEubol9wqPZrw_XwKu5ccN";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let session=null,me=null,activeChat=null,pinMode=null,messageChannel=null,pendingLockedConversation=null;
 let peer=null,localStream=null,activeCall=null,callChannels=new Map(),callStartedAt=null,callTimer=null,storyFile=null,storyObjectUrl=null;
+// V42: expose live auth/app state to older modules that use window.me/window.activeChat.
+try{
+  Object.defineProperty(window,"me",{configurable:true,get(){return me},set(v){me=v}});
+  Object.defineProperty(window,"session",{configurable:true,get(){return session},set(v){session=v}});
+  Object.defineProperty(window,"activeChat",{configurable:true,get(){return activeChat},set(v){activeChat=v}});
+}catch(_){}
 const $=id=>document.getElementById(id); const APP_BASE_URL="https://kingmasr204-del.github.io/ComboApp/";
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show"),3000)}
 function initials(n="C"){return n.trim().slice(0,1).toUpperCase()||"C"} function fmt(t){return new Date(t).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}
@@ -2124,7 +2130,7 @@ init();
 })();
 /* ComboApp V28 patch: communities, message actions, contact privacy, settings reset, search */
 (()=>{
-  const q=id=>document.getElementById(id), cur=()=>window.me?.id;
+  const q=id=>document.getElementById(id), cur=()=>((typeof me!=='undefined'&&me?.id)||window.me?.id);
   const esc28=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const safe28=x=>typeof x==='string'?x:JSON.stringify(x);
   const toast28=m=>window.toast?window.toast(m):alert(m);
@@ -2935,7 +2941,7 @@ init();
   const q=id=>document.getElementById(id);
   const esc35=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const toast35=m=>typeof window.toast==='function'?window.toast(m):console.log(m);
-  const uid=()=>window.me?.id||window.currentUser?.()?.id||'';
+  const uid=()=>((typeof me!=='undefined'&&me?.id)||window.me?.id||window.currentUser?.()?.id||'');
 
   /* Username search: one character is enough. Prefix/partial match, no privacy filter. */
   function bindUsernameSearch35(){
@@ -3017,7 +3023,7 @@ init();
   const q=id=>document.getElementById(id);
   const esc36=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const toast36=m=>typeof window.toast==='function'?window.toast(m):console.log(m);
-  const uid36=()=>window.me?.id||'';
+  const uid36=()=>((typeof me!=="undefined"&&me?.id)||window.me?.id||'');
 
   /* ---- Profile: never send the optional phone column. This keeps profile save working
           even when Supabase schema cache does not contain profiles.phone. ---- */
@@ -3151,7 +3157,7 @@ init();
 (function V37(){
   const q=id=>document.getElementById(id);
   const toast37=m=>typeof window.toast==='function'?window.toast(m):alert(m);
-  const uid=()=>window.me?.id||window.currentUser?.()?.id||'';
+  const uid=()=>((typeof me!=='undefined'&&me?.id)||window.me?.id||window.currentUser?.()?.id||'');
 
   /* Profile save: never reference profiles.phone. Keep phone locally until the DB column exists. */
   function bindProfile37(){
@@ -3302,7 +3308,7 @@ init();
 (function V38(){
   const q=id=>document.getElementById(id);
   const t=m=>typeof window.toast==='function'?window.toast(m):alert(m);
-  const uid=()=>window.me?.id||'';
+  const uid=()=>((typeof me!=='undefined'&&me?.id)||window.me?.id||'');
 
   /* A single, global profile saver. It never sends phone to profiles. */
   window.saveProfileV38=async function(){
@@ -3527,3 +3533,163 @@ init();
   window.ComboAppV41={closeStoryHard,openStoryHard};
 })();
 
+
+
+/* ===== ComboApp V42 — interaction layering + auth state + wallpaper + personal GIF/sticker import ===== */
+(function V42(){
+  const q=id=>document.getElementById(id);
+  const esc42=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  const uid42=()=>((typeof me!=='undefined'&&me?.id)||window.me?.id||'');
+  const toast42=m=>window.toast?.(m);
+
+  // Keep every older module seeing the real authenticated state.
+  try{
+    if(!Object.getOwnPropertyDescriptor(window,'me')?.get){
+      Object.defineProperty(window,'me',{configurable:true,get(){return me},set(v){me=v}});
+    }
+    if(!Object.getOwnPropertyDescriptor(window,'activeChat')?.get){
+      Object.defineProperty(window,'activeChat',{configurable:true,get(){return activeChat},set(v){activeChat=v}});
+    }
+  }catch(_){ }
+
+  // Modal layering: secondary sheets must appear ABOVE an open chat/story, not wait behind it.
+  function fixLayers(){
+    const simple=q('simpleModal'); if(simple){simple.style.zIndex='100000';}
+    const other=q('otherProfileModal'); if(other){other.style.zIndex='100001';}
+    const gp=q('v33CommunityProfile'); if(gp){gp.style.zIndex='100002';}
+    const cp=q('communityChatModal'); if(cp){cp.style.zIndex='900';}
+  }
+  fixLayers(); setInterval(fixLayers,500);
+
+  // Profile save: uses the authenticated lexical `me`, never requires profiles.phone.
+  function fixProfileSave(){
+    const b=q('saveProfileBtn'); if(!b || b.dataset.v42==='1') return;
+    const fresh=b.cloneNode(true); b.replaceWith(fresh); fresh.dataset.v42='1';
+    fresh.onclick=async()=>{
+      const id=uid42(); if(!id)return toast42('سجّل الدخول الأول');
+      const display_name=(q('profileName')?.value||'').trim();
+      const username=(q('profileUsername')?.value||'').trim().toLowerCase();
+      const phone=(q('profilePhone')?.value||'').replace(/\D/g,'');
+      const bio=(q('profileBio')?.value||'').trim();
+      if(!display_name||!username)return toast42('الاسم واسم المستخدم مطلوبين');
+      if(!/^[a-z0-9_.]{3,24}$/.test(username))return toast42('اسم المستخدم 3-24 حرفًا: إنجليزي وأرقام و _ و . فقط');
+      const uq=await sb.from('profiles').select('id').eq('username',username).neq('id',id).maybeSingle();
+      if(uq.error)return toast42('تعذر التحقق من اسم المستخدم: '+uq.error.message);
+      if(uq.data)return toast42('اسم المستخدم مستخدم بالفعل');
+      const r=await sb.from('profiles').update({display_name,username,bio,last_seen:new Date().toISOString()}).eq('id',id).select('*').maybeSingle();
+      if(r.error)return toast42('تعذر حفظ البيانات: '+r.error.message);
+      if(r.data)me={...me,...r.data};
+      if(phone)localStorage.setItem('combo_profile_phone_'+id,phone);else localStorage.removeItem('combo_profile_phone_'+id);
+      if(me)me.phone=phone||me.phone||null;
+      try{window.renderAvatar?.(me?.avatar_url,display_name)}catch(_){ }
+      toast42('تم حفظ البيانات بنجاح');
+    };
+  }
+
+  // Create group/channel: always uses the actual authenticated user.
+  function fixCommunityCreate(){
+    const b=q('v16CommunityCreate'); if(!b || b.dataset.v42==='1') return;
+    b.dataset.v42='1';
+    b.onclick=async e=>{
+      e.preventDefault();e.stopPropagation();
+      const name=(q('v16CommunityName')?.value||'').trim();
+      const kindLabel=q('v16CommunityName')?.dataset.kind||'جروب';
+      const kind=kindLabel==='قناة'?'channel':'group';
+      const id=uid42();
+      if(!id)return toast42('سجّل الدخول الأول');
+      if(!name)return toast42('اكتب اسم '+kindLabel);
+      const bio=(q('v16CommunityBio')?.value||'').trim(); b.disabled=true;b.textContent='جاري الإنشاء...';
+      try{
+        const r=await sb.from('communities').insert({kind,name,description:bio||null,owner_id:id}).select('*').single();
+        if(r.error)throw r.error;
+        const c=r.data;
+        const mr=await sb.from('community_members').upsert({community_id:c.id,user_id:id,role:'owner'},{onConflict:'community_id,user_id'});
+        if(mr.error)throw mr.error;
+        let code=''; try{const z=await sb.rpc('combo_v28_ensure_invite',{p_community_id:c.id});if(!z.error)code=z.data||''}catch(_){ }
+        if(!code){code=Math.random().toString(36).slice(2,14);await sb.from('communities').update({invite_code:code}).eq('id',c.id).eq('owner_id',id)}
+        q('bottomComposeModal')?.classList.add('hidden');q('v16CommunityForm')?.classList.add('hidden');
+        await window.loadCommunities?.();
+        toast42(`تم إنشاء ${kindLabel} بنجاح`);
+        setTimeout(()=>window.openCommunityProfile33?.({...c,invite_code:code}),100);
+      }catch(err){console.error(err);toast42('تعذر إنشاء '+kindLabel+': '+(err?.message||'حصل خطأ'));}
+      finally{b.disabled=false;b.textContent='إنشاء '+kindLabel;}
+    };
+  }
+
+  // Final wallpaper renderer: all 20 bundled images + colors + custom image, with an absolute URL.
+  const wallFiles=Array.from({length:20},(_,i)=>`wall_${String(i+1).padStart(2,'0')}.jpg`);
+  const wallUrl=f=>new URL(`assets/wallpapers_custom/${f}`,document.baseURI).href;
+  function applyWallpaper42(){
+    const box=q('messagesBox'); if(!box)return;
+    const v=localStorage.getItem('combo_wallpaper')||'0';
+    box.style.backgroundImage='';box.style.backgroundSize='cover';box.style.backgroundPosition='center';box.style.backgroundRepeat='no-repeat';
+    box.className='messages';
+    if(v==='custom'){
+      const d=localStorage.getItem('combo_custom_wallpaper');if(d)box.style.backgroundImage=`linear-gradient(#03101655,#03101655),url("${d}")`;
+      return;
+    }
+    const n=/^img(\d\d)$/.exec(v);
+    if(n){const i=parseInt(n[1],10);if(i>=1&&i<=20)box.style.backgroundImage=`linear-gradient(#03101655,#03101655),url("${wallUrl(wallFiles[i-1])}")`;return;}
+    const classes=['','wall-dots','wall-green','wall-blue','wall-black','wall-pink','wall-magenta','wall-red','wall-purple','wall-gold','wall-cyan','wall-hearts'];
+    const cls=classes[Number(v)]||'';if(cls)box.classList.add(cls);
+  }
+  window.applyChatWallpaper=applyWallpaper42;
+
+  function showWallpaper42(){
+    const old=window.openSimple; if(typeof old!=='function')return;
+    const names=['غروب وجسر','أسد وغزال','ورد وهدية','Porsche','برج إيفل','سماء درامية','قمر وشجرة','آيات وأذكار','قط كيوت','One Piece','ساموراي والزهور','ألوان مكسورة','ستايل كلاسيكي','Focus on yourself','عيون بالأسود','Spider-Man','غوريلا','خلفية طريفة','أنمي','ستايل أبيض وأسود'];
+    const cards=wallFiles.map((f,i)=>`<button type="button" class="v42-wall-card" data-v42-wall="img${String(i+1).padStart(2,'0')}"><img src="${wallUrl(f)}" loading="lazy" alt=""><b>${esc42(names[i])}</b></button>`).join('');
+    const colors=[['0','افتراضي'],['1','نقاط نيون'],['2','أخضر'],['3','أزرق'],['4','أسود'],['5','وردي'],['6','فوشيا'],['7','أحمر'],['8','بنفسجي'],['9','ذهبي'],['10','سماوي'],['11','قلوب ونقاط']];
+    old('خلفيات الدردشة',`<div class="v42-wall-colors">${colors.map(x=>`<button class="choice-btn" data-v42-color="${x[0]}">${x[1]}</button>`).join('')}</div><div class="v42-wall-grid">${cards}</div><div class="v42-wall-actions"><button id="v42WallGallery" class="choice-btn">🖼️ اختيار صورة من المعرض</button><button id="v42WallReset" class="choice-btn">↺ الافتراضي</button><input id="v42WallInput" type="file" accept="image/*" hidden></div>`,'إغلاق');
+    fixLayers();
+    setTimeout(()=>{
+      document.querySelectorAll('[data-v42-wall]').forEach(b=>b.onclick=()=>{localStorage.setItem('combo_wallpaper',b.dataset.v42Wall);localStorage.removeItem('combo_custom_wallpaper');applyWallpaper42();window.closeSimple?.();toast42('تم تغيير خلفية الدردشة')});
+      document.querySelectorAll('[data-v42-color]').forEach(b=>b.onclick=()=>{localStorage.setItem('combo_wallpaper',b.dataset.v42Color);localStorage.removeItem('combo_custom_wallpaper');applyWallpaper42();window.closeSimple?.();toast42('تم تغيير خلفية الدردشة')});
+      q('v42WallGallery')?.addEventListener('click',()=>q('v42WallInput')?.click());
+      q('v42WallReset')?.addEventListener('click',()=>{localStorage.setItem('combo_wallpaper','0');localStorage.removeItem('combo_custom_wallpaper');applyWallpaper42();window.closeSimple?.();toast42('تمت إعادة الخلفية')});
+      q('v42WallInput')?.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{localStorage.setItem('combo_custom_wallpaper',r.result);localStorage.setItem('combo_wallpaper','custom');applyWallpaper42();window.closeSimple?.();toast42('تم وضع الصورة كخلفية')};r.readAsDataURL(f)});
+    },40);
+  }
+  window.showWallpaper=showWallpaper42;
+
+  // Imported GIFs: every user can add GIFs from their gallery and send them in chat.
+  async function addGifFile(file){
+    if(!file)return; if(!/^(image\/gif|image\/webp|image\/png|image\/jpeg)$/.test(file.type))return toast42('اختار GIF أو صورة متحركة');
+    try{const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)});let a=JSON.parse(localStorage.getItem('combo_imported_gifs')||'[]');a=[{src:data,name:file.name},...a].slice(0,30);localStorage.setItem('combo_imported_gifs',JSON.stringify(a));window.showEmojiTab?.('gif');toast42('تمت إضافة الـGIF');}catch(_){toast42('تعذر إضافة الـGIF')}
+  }
+  function sendGifData(src){
+    const chat=activeChat;if(!chat?.conversation?.id)return toast42('افتح محادثة أولًا');
+    const content='__combo_gif_data__:'+src;
+    sb.from('messages').insert({sender_id:me.id,receiver_id:chat.user.id,content,conversation_id:chat.conversation.id,message_type:'gif'}).then(r=>{if(r.error)return toast42('تعذر إرسال الـGIF');q('emojiPanel')?.classList.add('hidden');loadMessages();loadChats()});
+  }
+  const oldShowEmoji=window.showEmojiTab;
+  window.showEmojiTab=function(tab){
+    if(tab!=='gif' && tab!=='sticker')return oldShowEmoji?.(tab);
+    const box=q('emojiContent');if(!box)return;
+    document.querySelectorAll('.emoji-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+    if(tab==='gif'){
+      const imported=JSON.parse(localStorage.getItem('combo_imported_gifs')||'[]');
+      const built=(typeof GIFS!=='undefined'?GIFS:[]);
+      box.innerHTML=`<div class="v42-rich-tools"><button id="v42AddGif" class="choice-btn">➕ إضافة GIF من المعرض</button></div><div class="v42-gif-grid">${built.map((src,i)=>`<button type="button" data-v42-gif="b${i}"><img src="${new URL(src,document.baseURI).href}"><small>GIF ${i+1}</small></button>`).join('')}${imported.map((x,i)=>`<button type="button" data-v42-gif="i${i}"><img src="${esc42(x.src)}"><small>من المعرض</small></button>`).join('')}</div><input id="v42GifInput" type="file" accept="image/gif,image/webp,image/png,image/jpeg" hidden>`;
+      box.querySelectorAll('[data-v42-gif]').forEach(b=>b.onclick=()=>{const v=b.dataset.v42Gif;if(v[0]==='i')sendGifData(imported[Number(v.slice(1))].src);else sendRichReaction('gif',Number(v.slice(1)))});
+      q('v42AddGif')?.addEventListener('click',()=>q('v42GifInput')?.click());q('v42GifInput')?.addEventListener('change',e=>{const f=e.target.files?.[0];e.target.value='';addGifFile(f)});return;
+    }
+    // Sticker tab: keep existing packs + imported stickers, with an obvious import button.
+    if(typeof renderStickersV14==='function')renderStickersV14();
+  };
+  // Final click delegation for emoji tabs (prevents older handlers from being the only binding).
+  document.addEventListener('click',e=>{const t=e.target.closest('.emoji-tab');if(t){e.preventDefault();e.stopPropagation();window.showEmojiTab(t.dataset.tab)}},true);
+
+  // Render imported GIF-data messages as actual images.
+  const oldLoadMessages=window.loadMessages;
+  // Global function binding is live in classic scripts; wrap when available.
+  if(typeof oldLoadMessages==='function' && !window.__v42LoadWrap){
+    window.__v42LoadWrap=true;
+    // Patch the function source by adding a renderer hook through a MutationObserver.
+    const box=q('messagesBox');
+    if(box){new MutationObserver(()=>{box.querySelectorAll('.message-text').forEach(el=>{const t=el.textContent||'';if(t.startsWith('__combo_gif_data__:')){const src=t.slice('__combo_gif_data__:'.length);el.parentElement?.insertAdjacentHTML('afterbegin',`<div class="sent-gif"><img src="${esc42(src)}" alt="GIF" loading="lazy"></div>`);el.remove();}})}).observe(box,{childList:true,subtree:true});}
+  }
+
+  function boot42(){fixLayers();fixProfileSave();fixCommunityCreate();applyWallpaper42();}
+  boot42();setTimeout(boot42,150);setTimeout(boot42,700);setTimeout(boot42,1800);
+})();
