@@ -395,3 +395,35 @@ input,textarea,.modal-search{background:#061a21!important;border-color:#15515a!i
 .v50-hidden-story{border:1px solid #29444a;background:#071a21;border-radius:13px;padding:10px;margin:7px 0;color:#dff8f4}
 .v50-lock-note{padding:18px;text-align:center;color:#9abbb6;border:1px dashed #24515a;border-radius:15px}
 .v50-notification-locked{font-weight:800}
+
+/* ===== V51 MOBILE / PWA POLISH ===== */
+html{height:100%;background:#020b10;overscroll-behavior:none}
+body{min-height:100%;min-height:100dvh;overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+button,input,textarea{font:inherit}
+button{touch-action:manipulation}
+.app-screen,.auth-screen{min-height:100dvh}
+.topbar{padding-top:env(safe-area-inset-top);height:calc(68px + env(safe-area-inset-top))}
+.bottom-nav{height:calc(72px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom)}
+.page{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+.modal-panel,.chat-panel,.story-composer{padding-bottom:env(safe-area-inset-bottom)}
+.chat-panel{height:100dvh;max-height:100dvh}
+.chat-head{padding-top:max(9px,env(safe-area-inset-top))}
+.messages{min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.composer{position:relative;flex:none;padding-bottom:max(9px,env(safe-area-inset-bottom));padding-left:max(9px,env(safe-area-inset-left));padding-right:max(9px,env(safe-area-inset-right));z-index:8}
+.composer input{font-size:16px;min-height:44px}
+.composer-icon,.send-round{flex:none}
+.emoji-panel{max-height:45dvh;bottom:calc(70px + env(safe-area-inset-bottom));overflow:hidden}
+@media (max-width:700px){
+  .app-screen{width:100%;border:0}
+  .modal-panel{width:100%;border-radius:0}
+  .chat-panel{width:100%;border-radius:0}
+  .sheet{height:100dvh;border-radius:0}
+  .quick-row{grid-template-columns:1fr 1fr}
+}
+@media (max-width:390px){
+  .topbar{padding-inline:9px}.hero-title h2{font-size:23px}.page{padding-inline:10px}
+  .bubble{max-width:88%}.composer{gap:2px}.composer-icon{width:34px;font-size:23px}.send-round{width:42px;height:42px}
+}
+@supports (-webkit-touch-callout:none){
+  input,textarea{font-size:16px}
+}
