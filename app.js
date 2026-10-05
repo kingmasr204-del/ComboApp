@@ -4329,3 +4329,123 @@ init();
     }).join('')||'<div class="empty-card">مفيش حالات متاحة ليك حاليًا.</div>';
   };
 })();
+
+
+/* ================= COMBOAPP V47 - CLEAN STORY TOOLS + ONLINE GIF SEARCH + GIF FAVORITES + STRICT USERNAME PRIVACY ================= */
+(function(){
+  const $=id=>document.getElementById(id);
+  const toast47=m=>window.toast?window.toast(m):alert(m);
+  const safe47=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  /* ----- Story controls: ONE row for each control, all circular ----- */
+  const BG47=['#000000','#ffffff','#061a3a','#4b174d','#0b8f55','#00a884','#00bcd4','#1565c0','#7b2cbf','#c2185b','#e53935','#ff2d8d','#ff7a00','#f4d03f','#2e7d32','#111827','#ff4081','#673ab7','#8d6e63','#087f5b'];
+  const TXT47=['#ffffff','#000000','#00e6b0','#00c853','#00b8d4','#42a5ff','#ffd54f','#ff7a00','#ff2d8d','#ff3b30','#b46cff','#e0e0e0','#7cffdc'];
+  const MARKS47=['َ','ً','ُ','ٌ','ِ','ٍ','ْ','ّ','ٰ'];
+  const DECO47=[
+    ['عادي',s=>s],
+    ['مـد',s=>s.split('').join('ـ')],
+    ['مُشَكَّل',s=>s.split('').map((c,i)=>c===' '||/[\d\W]/.test(c)?c:MARKS47[i%MARKS47.length]+c).join('')],
+    ['مـشـكـل',s=>s.split('').map(c=>c===' '?c:c+'َ').join('ـ')],
+    ['【مربع】',s=>'【'+s+'】'],
+    ['『فخم』',s=>'『'+s+'』'],
+    ['★ مزخرف ★',s=>'★ '+s+' ★'],
+    ['✦ نجمي ✦',s=>'✦ '+s+' ✦'],
+    ['❀ زهري ❀',s=>'❀ '+s+' ❀'],
+    ['☾ قمري ☽',s=>'☾ '+s+' ☽'],
+    ['༺ فخم ༻',s=>'༺ '+s+' ༻'],
+    ['𓆩 فني 𓆪',s=>'𓆩 '+s+' 𓆪'],
+    ['• نقطي •',s=>'• '+s.split('').join(' • ')+' •'],
+    ['English 𝓢𝓽𝔂𝓵𝓮',s=>s.split('').map(c=>{const n=c.charCodeAt(0);if(n>=65&&n<=90)return String.fromCodePoint(0x1D400+n-65);if(n>=97&&n<=122)return String.fromCodePoint(0x1D41A+n-97);return c}).join('')],
+    ['English 𝗕𝗼𝗹𝗱',s=>s.split('').map(c=>{const n=c.charCodeAt(0);if(n>=65&&n<=90)return String.fromCodePoint(0x1D5A0+n-65);if(n>=97&&n<=122)return String.fromCodePoint(0x1D5BA+n-97);return c}).join('')]
+  ];
+  function setBG47(c){const x=$('storyCanvas');if(!x)return;x.style.background=c;x.style.setProperty('--story-bg',c);localStorage.setItem('combo_story_bg',c)}
+  function setTXT47(c){const t=$('storyText'),cap=$('storyCaption');if(t){t.style.color=c;t.style.setProperty('color',c,'important')}if(cap){cap.style.color=c;cap.style.setProperty('color',c,'important')}localStorage.setItem('combo_story_text_color',c)}
+  function restore47(){const b=localStorage.getItem('combo_story_bg')||'#0a1820',t=localStorage.getItem('combo_story_text_color')||'#ffffff';setBG47(b);setTXT47(t)}
+  function install47(){
+    const c=$('storyComposer');if(!c)return;
+    c.querySelectorAll('.v45-story-tools,.v46-story-tools,.v47-story-tools,.story-colors').forEach(x=>x.remove());
+    const tools=document.createElement('div');tools.className='v47-story-tools';
+    tools.innerHTML=`<div class="v47-title">لون الخلفية</div><div class="v47-swatches">${BG47.map(x=>`<button type="button" class="v47-circle" data-v47-bg="${x}" style="background:${x}" aria-label="لون الخلفية ${x}"></button>`).join('')}</div><div class="v47-title">لون النص</div><div class="v47-swatches">${TXT47.map(x=>`<button type="button" class="v47-circle" data-v47-txt="${x}" style="background:${x}" aria-label="لون النص ${x}"></button>`).join('')}</div><div class="v47-title">زخرفة وتشكيل</div><div class="v47-deco">${DECO47.map((x,i)=>`<button type="button" data-v47-deco="${i}">${safe47(x[0])}</button>`).join('')}</div>`;
+    c.querySelector('.story-bottom-tools')?.after(tools);
+    tools.querySelectorAll('[data-v47-bg]').forEach(b=>b.onclick=()=>{tools.querySelectorAll('[data-v47-bg]').forEach(x=>x.classList.remove('active'));b.classList.add('active');setBG47(b.dataset.v47Bg)});
+    tools.querySelectorAll('[data-v47-txt]').forEach(b=>b.onclick=()=>{tools.querySelectorAll('[data-v47-txt]').forEach(x=>x.classList.remove('active'));b.classList.add('active');setTXT47(b.dataset.v47Txt)});
+    const t=$('storyText');
+    if(t&&!t.dataset.v47RawBound){t.dataset.v47RawBound='1';t.dataset.v47Raw=t.value||'';t.addEventListener('input',()=>{t.dataset.v47Raw=t.value})}
+    tools.querySelectorAll('[data-v47-deco]').forEach(b=>b.onclick=()=>{if(!t)return;const raw=t.dataset.v47Raw!==undefined?t.dataset.v47Raw:t.value;const fn=DECO47[Number(b.dataset.v47Deco)]?.[1]||((s)=>s);t.value=fn(raw||'اكتب هنا');t.dataset.v47Raw=raw;tools.querySelectorAll('[data-v47-deco]').forEach(x=>x.classList.toggle('active',x===b));t.focus()});
+    restore47();
+    const bg=localStorage.getItem('combo_story_bg'),tc=localStorage.getItem('combo_story_text_color');
+    tools.querySelectorAll('[data-v47-bg]').forEach(b=>b.classList.toggle('active',b.dataset.v47Bg===bg));
+    tools.querySelectorAll('[data-v47-txt]').forEach(b=>b.classList.toggle('active',b.dataset.v47Txt===tc));
+  }
+  const oldOpen47=window.openStoryComposer;
+  window.openStoryComposer=function(){oldOpen47?.();setTimeout(install47,30);};
+  setTimeout(install47,300);
+
+  /* ----- Online GIFs: in-app GIPHY search + GIF / Favorites tabs ----- */
+  const GIPHY_KEY47=localStorage.getItem('combo_giphy_api_key')||'dc6zaTOxFJmzC';
+  function fav47(){try{return JSON.parse(localStorage.getItem('combo_favorite_gifs')||'[]')}catch(_){return[]}}
+  function saveFav47(src){let a=fav47().filter(x=>x!==src);a=[src,...a].slice(0,200);localStorage.setItem('combo_favorite_gifs',JSON.stringify(a));toast47('تمت إضافة GIF للمفضلة ⭐')}
+  function gifCard47(item,idx){return `<div class="v47-gif-card"><button type="button" class="v47-gif-main" data-v47-gif="${safe47(item.src)}"><img src="${safe47(item.preview||item.src)}" loading="lazy" alt="GIF"><span>${safe47(item.title||'GIF')}</span></button><button type="button" class="v47-gif-star" data-v47-fav="${safe47(item.src)}" title="حفظ للمفضلة">☆</button></div>`}
+  async function online47(q){
+    const box=$('v45GifResults');if(!box)return;
+    box.innerHTML='<div class="v47-loading">جاري البحث عن GIF...</div>';
+    const endpoint=q?`https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(GIPHY_KEY47)}&q=${encodeURIComponent(q)}&limit=30&rating=pg-13&lang=ar`:`https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(GIPHY_KEY47)}&limit=30&rating=pg-13`;
+    try{
+      const r=await fetch(endpoint,{headers:{Accept:'application/json'}});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();
+      const arr=(j.data||[]).map(g=>({src:g.images?.original?.url||g.images?.downsized?.url,preview:g.images?.fixed_width?.url||g.images?.downsized_small?.url,title:g.title||q||'GIF'})).filter(x=>x.src);
+      if(!arr.length){box.innerHTML='<div class="muted" style="padding:18px">مفيش GIFs للبحث ده.</div>';return}
+      box.innerHTML=arr.map(gifCard47).join('');bindGif47(box);
+    }catch(e){console.warn('GIPHY',e);box.innerHTML='<div class="v47-gif-error">تعذر تحميل GIFs من GIPHY حاليًا. تأكد من اتصال الإنترنت أو مفتاح GIPHY.</div>'}
+  }
+  function bindGif47(box){
+    box.querySelectorAll('[data-v47-gif]').forEach(b=>b.onclick=()=>{if(typeof sendGifDataV45==='function')sendGifDataV45(b.dataset.v47Gif)});
+    box.querySelectorAll('[data-v47-fav]').forEach(b=>b.onclick=e=>{e.stopPropagation();saveFav47(b.dataset.v47Fav);b.textContent='★';b.classList.add('saved')});
+  }
+  function renderFav47(){const box=$('v45GifResults');if(!box)return;const a=fav47();box.innerHTML=a.length?a.map((src,i)=>gifCard47({src,preview:src,title:'GIF محفوظ'},i)).join(''):'<div class="muted" style="padding:18px">مفيش GIFs محفوظة لسه. اضغط ☆ على أي GIF لإضافته للمفضلة.</div>';bindGif47(box)}
+  const oldShow47=window.showEmojiTab;
+  window.showEmojiTab=function(tab){
+    if(tab!=='gif')return oldShow47?.(tab);
+    const box=$('emojiContent');if(!box)return;
+    document.querySelectorAll('.emoji-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+    const imported=JSON.parse(localStorage.getItem('combo_imported_gifs')||'[]');
+    box.innerHTML=`<div class="v47-gif-head"><div class="v47-gif-tabs"><button type="button" class="v47-gif-tab active" data-v47-giftab="gif">GIF</button><button type="button" class="v47-gif-tab" data-v47-giftab="fav">⭐ المفضلة</button></div><div class="v47-gif-search"><input id="v45GifSearch" placeholder="ابحث عن GIF..." autocomplete="off"><button type="button" id="v47GifSearchBtn" aria-label="بحث">⌕</button></div></div><div class="v47-gif-local-tools"><button type="button" id="v47TrendingGif">🔥 GIFs الرائجة</button><button type="button" id="v45AddGif">➕ إضافة من الجهاز</button><input id="v45GifInput" type="file" accept="image/gif,image/*" hidden></div><div id="v45GifResults" class="v45-gif-grid"></div>`;
+    const search=async()=>{const q=($('v45GifSearch')?.value||'').trim();await online47(q)};
+    $('v47GifSearchBtn').onclick=search;$('v45GifSearch').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();search()}};
+    $('v47TrendingGif').onclick=()=>online47('');
+    document.querySelectorAll('[data-v47-giftab]').forEach(b=>b.onclick=async()=>{document.querySelectorAll('[data-v47-giftab]').forEach(x=>x.classList.toggle('active',x===b));if(b.dataset.v47Giftab==='fav')renderFav47();else await online47('')});
+    $('v45AddGif').onclick=()=>$('v45GifInput').click();$('v45GifInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=await fileToDataURL(f,700);let a=JSON.parse(localStorage.getItem('combo_imported_gifs')||'[]');a=[d,...a].slice(0,100);localStorage.setItem('combo_imported_gifs',JSON.stringify(a));saveFav47(d);toast47('تمت إضافة GIF وحفظه في المفضلة');renderFav47()}catch(_){toast47('تعذر إضافة GIF')}};
+    online47('');
+  };
+
+  /* ----- More emojis: extra modern/common Unicode groups ----- */
+  try{
+    const more={
+      smileys2:'🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 ☺️ 😚 😙 🥲 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🫢 🫣 🫠 🤫 🤔 🫡 🤐 🤨 😐 🫨 😑 😶 🫥 😶‍🌫️ 🙄 😬 😮‍💨 🤥 🫩 😌 😔 😪 🤤 😴 🥱 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 😵‍💫 🤯 🤠 🥳 🥸 😎 🤓 🧐 😕 🫤 😟 🙁 ☹️ 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 🥹 😤 😠 😡 🤬 👿 😈 💀 ☠️ 👻 👽 🤖',
+      hands:'👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 🫵 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🫀 🧠 👀 👁️ 👅 👄',
+      hearts:'❤️ 🩷 🧡 💛 💚 🩵 💙 💜 🖤 🩶 🤍 🤎 ❤️‍🔥 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ❤️‍🩹 💌 💋',
+      nature:'🌞 🌝 🌛 🌜 🌚 🌕 🌖 🌗 🌘 🌑 🌒 🌓 🌔 ⭐ 🌟 ✨ 💫 🌈 ☀️ 🌤️ ⛅ 🌥️ ☁️ 🌦️ 🌧️ ⛈️ 🌩️ 🌨️ ❄️ ☃️ ⛄ 🌬️ 💨 💧 💦 🌊 🔥 🌱 🪴 🌲 🌳 🌴 🌵 🌷 🌹 🥀 🌺 🌸 🌼 🌻 🪻',
+      food2:'🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🥑 🍅 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🍄 🥜 🌰 🫘 🍞 🥐 🥖 🥨 🧀 🥚 🍳 🧇 🥞 🧈 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🌮 🌯 🥗 🍝 🍜 🍲 🍛 🍣 🍤 🍚 🍙 🍘 🥟 🥠 🍰 🎂 🧁 🍩 🍪 🍫 🍬 🍭 🍮 ☕ 🧋 🥤 🍺 🍻 🍷 🍸 🍹 🥂',
+      travel2:'🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍️ 🚲 🛴 ✈️ 🛫 🛬 🚀 🛸 🚁 🚂 🚆 🚇 🚊 🚉 🚢 ⛵ 🚤 🗺️ 🗽 🗼 🏰 🏯 🎡 🎢 🎠 🏖️ 🏝️ 🏜️ 🌋 🗻 🏕️ ⛺ 🏠 🏡 🏢 🏥 🏨 🏫',
+      objects2:'📱 💻 ⌨️ 🖥️ 🖨️ 🖱️ 📷 📸 📹 🎥 📺 🎙️ 🔍 🔎 💡 🔦 🕯️ 🛒 💰 💳 💎 🔑 🔒 🔓 🔨 🪛 🔧 🧰 🧲 🔬 🔭 📡 💉 💊 🧸 🎁 🎈 🎉 🎊 ✉️ 📩 📦 📝 📚 📖 📌 📍 ✂️ 🖊️ ✏️ 📎 🪄 🎮 🕹️ 🎲 🧩 🪅 🎨 🎵 🎶 🎧 🎤 🎸 🎹'
+    };
+    Object.assign(COMBO_EMOJI_CATS,more);
+    window.renderEmojiCategory=window.renderEmojiCategory||function(){};
+  }catch(_){ }
+
+  /* ----- Absolute username privacy: nobody means nobody in every search path ----- */
+  const oldSearch47=window.searchUsers;
+  window.searchUsers=async function(){
+    try{
+      const input=$('userSearch'),box=$('searchResults');if(!input||!box||!window.me)return oldSearch47?.();
+      const term=(input.value||'').trim().replace(/^@/,'').toLowerCase();if(!term){box.classList.add('hidden');return}
+      if(!/^[a-z0-9_.]+$/i.test(term)){box.classList.remove('hidden');box.innerHTML='<div class="muted" style="padding:12px">اكتب حرف أو جزء من اليوزر.</div>';return}
+      const r=await sb.from('profiles').select('id,username,display_name,avatar_url,phone,username_visibility').ilike('username',term+'%').neq('id',me.id).order('username').limit(100);if(r.error)throw r.error;
+      const contacts=await sb.from('user_contacts').select('phone').eq('user_id',me.id).limit(2000);const phones=new Set((contacts.data||[]).map(x=>String(x.phone||'').replace(/\D/g,'')));
+      const rows=(r.data||[]).filter(u=>{const v=String(u.username_visibility||'everyone').toLowerCase();if(v==='nobody'||v==='hidden')return false;if(v==='contacts')return phones.has(String(u.phone||'').replace(/\D/g,''));return true});
+      box.classList.remove('hidden');box.innerHTML=rows.length?rows.map(u=>`<div class="result-item" data-v47-user="${safe47(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${safe47(u.avatar_url)}">`:'👤'}</div><div class="chat-info"><strong>${safe47(u.display_name||u.username||'مستخدم')}</strong><small>@${safe47(u.username||'')}</small></div><button type="button" class="contact-action primary-inline">دردشة</button></div>`).join(''):'<div class="muted" style="padding:12px">لا توجد نتائج ظاهرة حسب إعدادات الخصوصية.</div>';
+      box.querySelectorAll('[data-v47-user]').forEach(el=>el.onclick=()=>window.openUser?.(el.dataset.v47User));
+    }catch(e){console.warn('V47 username privacy',e);if(oldSearch47)oldSearch47()}
+  };
+  function bindSearch47(){const old=$('userSearch');if(!old||old.dataset.v47==='1')return;const fresh=old.cloneNode(true);old.replaceWith(fresh);fresh.dataset.v47='1';fresh.addEventListener('input',window.searchUsers);fresh.addEventListener('keyup',window.searchUsers)}
+  setTimeout(bindSearch47,500);setTimeout(bindSearch47,1500);
+})();
