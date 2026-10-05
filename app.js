@@ -818,13 +818,13 @@ handleSignal=async function(p){
       return !r2.error && !!r2.data;
     }catch(_){ return false; }
   }
-  window.comboUsernameVisibilityLabel=function(v){return v==='contacts'?'جهات اتصاله':v==='nobody'?'لا أحد':'الجميع'};
+  window.comboUsernameVisibilityLabel=function(v){return v==='contacts'?'جهات اتصالي':v==='nobody'?'لا أحد':'الجميع'};
   window.comboUsernameVisibility=viewerCanSeeUsername;
 
   const oldShowPrivacy=window.showPrivacy;
   window.showPrivacy=async function(){
     const val=(k,def)=>localStorage.getItem('combo_'+k) ?? (me?.[k]||def);
-    const row=(id,label,value)=>`<label class="privacy-row"><span>${label}</span><select id="${id}"><option value="everyone" ${value==='everyone'?'selected':''}>الجميع</option><option value="contacts" ${value==='contacts'?'selected':''}>جهات اتصاله</option><option value="nobody" ${value==='nobody'?'selected':''}>لا أحد</option></select></label>`;
+    const row=(id,label,value)=>`<label class="privacy-row"><span>${label}</span><select id="${id}"><option value="everyone" ${value==='everyone'?'selected':''}>الجميع</option><option value="contacts" ${value==='contacts'?'selected':''}>جهات اتصالي</option><option value="nobody" ${value==='nobody'?'selected':''}>لا أحد</option></select></label>`;
     const body=`<div class="settings-info privacy-live">
       <h4>الخصوصية والأمان</h4>
       ${row('pLast','آخر ظهور',val('privacy_last_seen','everyone'))}
@@ -833,7 +833,7 @@ handleSignal=async function(p){
       ${row('pAbout','النبذة والمعلومات',val('privacy_profile','everyone'))}
       ${row('pStatus','الحالة',val('privacy_status','everyone'))}
       ${row('pUsername','من يمكنه رؤية اسم المستخدم',val('username_visibility','everyone'))}
-      <div class="muted" style="margin:8px 0 12px;line-height:1.7">لو اخترت «جهات اتصاله»، اسم المستخدم يظهر فقط للأشخاص الذين أضفتهم أنت كجهة اتصال. أنت تقدر تشوف أسماء المستخدمين للآخرين بشكل طبيعي.</div>
+      <div class="muted" style="margin:8px 0 12px;line-height:1.7">لو اخترت «جهات اتصالي»، اسم المستخدم يظهر فقط للأشخاص الذين أضفتهم أنت كجهة اتصال. أنت تقدر تشوف أسماء المستخدمين للآخرين بشكل طبيعي.</div>
       ${row('pGroups','إضافتي للمجموعات',val('privacy_groups','everyone'))}
       ${row('pCalls','من يمكنه الاتصال بي',val('privacy_calls','everyone'))}
       <label class="privacy-row"><span>إيصالات القراءة</span><input id="pRead" type="checkbox" ${val('read_receipts','on')!=='off'?'checked':''}></label>
@@ -3822,3 +3822,125 @@ init();
 (function V43CSS(){const s=document.createElement('style');s.textContent=`
 .v43-settings-modal{z-index:99999!important}.v43-sheet{width:min(720px,94vw);max-height:90vh;overflow:auto;margin:auto;background:#061820;color:#fff;border:1px solid #15515b;border-radius:22px;padding:18px;box-sizing:border-box}.v43-setting{padding:12px;margin:9px 0;border:1px solid #16464e;border-radius:14px}.v43-setting label{display:block;padding:10px}.v43-sheet .primary{width:100%;margin-top:10px;background:#00d4ac;color:#032019;border:0;border-radius:13px;padding:14px;font-size:16px;font-weight:800}.v43-emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;max-height:270px;overflow:auto}.v43-emoji-grid button{border:0;background:transparent;color:#fff;font-size:27px;padding:6px;border-radius:8px}.v43-emoji-grid button:active{background:#12343c}.color-dot{touch-action:manipulation;cursor:pointer;position:relative;z-index:5}
 `;document.head.appendChild(s)})();
+
+
+/* ===== ComboApp V44 — Username privacy actually enforced across devices ===== */
+(function V44UsernamePrivacy(){
+  const q=id=>document.getElementById(id);
+  const esc44=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const uid=()=>((typeof me!=='undefined'&&me?.id)||window.me?.id||'');
+  const norm44=v=>String(v||'').replace(/\D/g,'');
+
+  // Read the viewer's actual saved contacts from the current Supabase schema.
+  // user_contacts is owned by the viewer and stores phone numbers.
+  async function viewerHasPhone44(phone){
+    const target=norm44(phone);
+    if(!target || !uid()) return false;
+    try{
+      const r=await sb.from('user_contacts').select('phone').eq('user_id',uid()).limit(2000);
+      if(r.error) return false;
+      return (r.data||[]).some(x=>norm44(x.phone)===target);
+    }catch(_){ return false; }
+  }
+
+  async function canSee44(u){
+    if(!u?.username) return false;
+    if(uid()===u.id) return true;
+    const mode=String(u.username_visibility||'everyone').toLowerCase();
+    if(mode==='nobody' || mode==='hidden') return false;
+    if(mode==='contacts') return viewerHasPhone44(u.phone);
+    return true;
+  }
+  window.comboCanSeeUsername=canSee44;
+
+  // Final search handler: one character is enough, but privacy is enforced.
+  window.searchUsers=async function(){
+    const input=q('userSearch'),box=q('searchResults');
+    if(!input||!box||!uid()) return;
+    const term=(input.value||'').trim().replace(/^@/,'').toLowerCase();
+    if(!term){box.classList.add('hidden');box.innerHTML='';return;}
+    box.classList.remove('hidden');
+    if(!/^[a-z0-9_.]+$/i.test(term)){
+      box.innerHTML='<div class="muted" style="padding:12px">اكتب حرف أو جزء من اليوزر.</div>';return;
+    }
+    try{
+      const r=await sb.from('profiles')
+        .select('id,username,display_name,avatar_url,phone,username_visibility')
+        .ilike('username',term+'%')
+        .neq('id',uid())
+        .order('username')
+        .limit(100);
+      if(r.error) throw r.error;
+      const candidates=r.data||[];
+      const visible=[];
+      for(const u of candidates){
+        if(await canSee44(u)) visible.push(u);
+      }
+      box.innerHTML=visible.length
+        ? visible.map(u=>`<div class="result-item" data-v44-user="${esc44(u.id)}"><div class="avatar">${u.avatar_url?`<img src="${esc44(u.avatar_url)}">`:'👤'}</div><div class="chat-info"><strong>${esc44(u.display_name||u.username||'مستخدم')}</strong><small>@${esc44(u.username||'')}</small></div><button type="button" class="contact-action primary-inline">دردشة</button></div>`).join('')
+        : '<div class="muted" style="padding:12px">مفيش نتائج ظاهرة حسب إعدادات الخصوصية.</div>';
+      box.querySelectorAll('[data-v44-user]').forEach(el=>el.onclick=()=>window.openUser?.(el.dataset.v44User));
+    }catch(err){
+      console.warn('V44 username search',err);
+      box.innerHTML='<div class="muted" style="padding:12px">تعذر البحث حاليًا.</div>';
+    }
+  };
+
+  // Replace every old input handler so an older version cannot bypass privacy.
+  function bind44(){
+    const old=q('userSearch');
+    if(!old || old.dataset.v44==='1') return;
+    const fresh=old.cloneNode(true);
+    old.replaceWith(fresh);
+    fresh.dataset.v44='1';
+    fresh.addEventListener('input',window.searchUsers);
+    fresh.addEventListener('keyup',window.searchUsers);
+  }
+
+  // Keep the UI wording consistent.
+  function fixLabels44(){
+    document.querySelectorAll('option').forEach(o=>{if(o.textContent.trim()==='جهات اتصالي')o.textContent='جهات اتصالي';});
+    document.querySelectorAll('.muted').forEach(el=>{if(el.textContent.includes('جهات اتصالي'))el.textContent=el.textContent.replaceAll('جهات اتصالي','جهات اتصالي');});
+  }
+
+  // Make the username privacy selector persist to the profile row and local cache.
+  function bindSave44(){
+    const b=q('savePrivacyV11');
+    if(!b || b.dataset.v44==='1') return;
+    b.dataset.v44='1';
+    b.onclick=async e=>{
+      e.preventDefault(); e.stopPropagation();
+      const get=id=>q(id)?.value;
+      const vals={
+        privacy_last_seen:get('pLast'),
+        privacy_online:get('pOnline'),
+        privacy_avatar:get('pAvatar'),
+        privacy_profile:get('pAbout'),
+        privacy_status:get('pStatus'),
+        username_visibility:get('pUsername'),
+        privacy_groups:get('pGroups'),
+        privacy_calls:get('pCalls'),
+        read_receipts:q('pRead')?.checked?'on':'off',
+        typing:q('pTyping')?.checked?'on':'off'
+      };
+      Object.entries(vals).forEach(([k,v])=>{if(v!=null)localStorage.setItem('combo_'+k,v);});
+      if(!uid()){toast?.('يرجى تسجيل الدخول أولًا');return;}
+      const db={};
+      ['privacy_last_seen','privacy_avatar','privacy_profile','privacy_status','username_visibility','read_receipts'].forEach(k=>{if(vals[k]!=null)db[k]=vals[k]});
+      const r=await sb.from('profiles').update(db).eq('id',uid());
+      if(r.error){
+        console.warn('V44 privacy save',r.error);
+        toast?.('تعذر حفظ الخصوصية على الحساب');
+        return;
+      }
+      if(typeof me!=='undefined'&&me)me={...me,...db};
+      toast?.('تم حفظ إعدادات الخصوصية');
+      if(typeof closeSimple==='function')closeSimple();
+    };
+  }
+
+  setTimeout(()=>{bind44();fixLabels44();bindSave44();},100);
+  setTimeout(()=>{bind44();fixLabels44();bindSave44();},700);
+  setTimeout(()=>{bind44();fixLabels44();bindSave44();},1800);
+  document.addEventListener('click',()=>{setTimeout(()=>{bind44();fixLabels44();bindSave44();},30)});
+})();
