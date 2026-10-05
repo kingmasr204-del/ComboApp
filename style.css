@@ -326,3 +326,22 @@ input,textarea,.modal-search{background:#061a21!important;border-color:#15515a!i
 .v42-gif-grid small{display:block;font-size:10px;margin-top:3px;color:#a8c4c1}
 .v42-rich-tools{padding:7px}
 @media(max-width:600px){.v42-wall-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:48vh}.v42-wall-card img{height:84px}.v42-gif-grid{grid-template-columns:repeat(3,1fr)}}
+
+/* ===== V45 polish ===== */
+.v45-story-tools{background:#06171d;border-top:1px solid #173b42;padding:7px 8px;max-height:170px;overflow:auto;flex:0 0 auto}
+.v45-tool-title{font-size:11px;font-weight:800;color:#b9d5d2;margin:3px 0 5px}
+.v45-swatches{display:flex;gap:7px;overflow-x:auto;padding:2px 1px 6px}
+.v45-swatch{width:27px;height:27px;min-width:27px;border-radius:50%;border:2px solid #d6eeee55;box-shadow:0 0 0 1px #0005;cursor:pointer}
+.v45-deco-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:3px}
+.v45-deco-row button,.v45-rich-actions button{border:1px solid #24515a;background:#0a252d;color:#fff;border-radius:10px;padding:7px 9px;white-space:nowrap;cursor:pointer}
+.v45-rich-actions{display:flex;gap:6px;padding:7px;overflow-x:auto}
+.v45-gif-search{display:flex;gap:6px;padding:7px}
+.v45-gif-search input{flex:1;min-width:0;border-radius:10px;border:1px solid #24515a;background:#071a21;color:#fff;padding:9px}
+.v45-gif-search button{border:0;border-radius:10px;padding:8px 12px;background:#00a884;color:#00150f;font-weight:800}
+.v45-gif-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:7px;max-height:290px;overflow:auto}
+.v45-gif-card{border:1px solid #1d4b54;background:#0a252d;border-radius:10px;padding:4px;color:#fff;cursor:pointer;min-width:0}
+.v45-gif-card img{display:block;width:100%;height:78px;object-fit:cover;border-radius:7px;background:#041217}
+.v45-gif-card small{display:block;font-size:8px;padding:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v45-audience-list{max-height:55vh;overflow:auto}
+.v45-image-sticker img{width:58px;height:58px;object-fit:contain}
+@media(max-width:600px){.v45-story-tools{max-height:205px}.v45-gif-grid{grid-template-columns:repeat(3,minmax(0,1fr));max-height:300px}.v45-gif-card img{height:68px}}

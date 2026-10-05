@@ -1,0 +1,2 @@
+ComboApp V45
+Auth validation/error handling, profile save without profiles.phone, story color/text-color/decorations, story audience picker, richer emoji, GIF/sticker upload/favorites, partial username search with privacy enforcement.
