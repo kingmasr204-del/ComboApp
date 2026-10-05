@@ -4704,3 +4704,93 @@ init();
   /* Make loadChats sort by actual latest message by wrapping the visible list refresh after every new chat/message. */
   setInterval(()=>{if(uid()&&!$('chatModal')?.classList.contains('hidden')){const box=$('messagesBox');if(box&&box.scrollHeight-box.scrollTop-box.clientHeight<180)box.scrollTop=box.scrollHeight}},900);
 })();
+
+/* ================================================================
+   ComboApp V50 — Locked Chats vault + locked notifications
+   ================================================================ */
+(()=>{
+  const q=id=>document.getElementById(id);
+  const uid=()=>window.me?.id||me?.id||null;
+  const esc50=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  const sha50=async s=>{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')};
+  function addQuick(){
+    const row=q('archivedBtn')?.parentElement;
+    if(!row||q('v50LockedQuickBtn'))return;
+    const b=document.createElement('button');b.id='v50LockedQuickBtn';b.className='quick-card v50-locked-quick';b.innerHTML='<span class="v50-lock-icon">🔐</span><span>الدردشات المقفلة</span>';
+    row.appendChild(b);b.onclick=openVaultGate;
+  }
+  function addPage(){
+    if(q('v50LockedPage'))return;
+    const app=q('appScreen');
+    const main=app?.querySelector('main');if(!main)return;
+    const s=document.createElement('section');s.id='v50LockedPage';s.className='page';
+    s.innerHTML='<div class="hero-title"><h2>🔐 الدردشات المقفلة</h2><button id="v50VaultBack" class="round-btn">←</button></div><div id="v50VaultContent" class="v50-vault"></div>';
+    main.appendChild(s);q('v50VaultBack').onclick=()=>go('homePage');
+  }
+  async function lockedRows(){
+    const id=uid();if(!id)return {rows:[],settings:{},profiles:{},hidden:[]};
+    const [cr,sr,hs]=await Promise.all([
+      sb.from('conversations').select('*').or(`user1_id.eq.${id},user2_id.eq.${id}`).order('created_at',{ascending:false}),
+      sb.from('conversation_settings').select('conversation_id,locked,pin_hash,deleted,archived').eq('user_id',id).eq('locked',true).eq('deleted',false),
+      sb.from('stories').select('id,user_id,content,created_at,profiles(display_name,username,avatar_url)').eq('user_id','00000000-0000-0000-0000-000000000000')
+    ]);
+    const settings=Object.fromEntries((sr.data||[]).map(x=>[x.conversation_id,x]));
+    const conv=(cr.data||[]).filter(c=>settings[c.id]);
+    const ids=[...new Set(conv.flatMap(c=>[c.user1_id,c.user2_id]).filter(x=>x!==id))];
+    let profiles={};
+    if(ids.length){const p=await sb.from('profiles').select('id,display_name,username,avatar_url').in('id',ids);profiles=Object.fromEntries((p.data||[]).map(x=>[x.id,x]));}
+    let hidden=[];try{const hid=JSON.parse(localStorage.getItem('combo_hidden_stories')||'[]');if(hid.length){const r=await sb.from('stories').select('id,user_id,content,created_at,profiles(display_name,username,avatar_url)').in('id',hid);hidden=r.data||[]}}catch(_){ }
+    return {rows:conv,settings,profiles,hidden};
+  }
+  async function renderVault(){
+    addPage();const box=q('v50VaultContent');if(!box)return;
+    box.innerHTML='<div class="v50-lock-note">جاري فتح الخزنة...</div>';
+    const {rows,profiles,hidden}=await lockedRows();
+    box.innerHTML=`<div class="v50-vault-section"><div class="v50-vault-title">🔒 الدردشات المقفلة (${rows.length})</div><div>${rows.map(c=>{const other=c.user1_id===uid()?c.user2_id:c.user1_id,u=profiles[other]||{};return `<button class="v50-vault-row" data-cid="${esc50(c.id)}"><span class="v50-avatar">${u.avatar_url?`<img src="${esc50(u.avatar_url)}">`:'🔒'}</span><span><b>${esc50(u.display_name||u.username||'محادثة مقفولة')}</b><small>هذه المحادثة مخفية ومقفولة</small></span></button>`}).join('')||'<div class="v50-lock-note">لا توجد دردشات مقفولة حاليًا.</div>'}</div></div><div class="v50-vault-section"><div class="v50-vault-title">🙈 الحالات المخفية (${hidden.length})</div><div>${hidden.map(s=>`<div class="v50-hidden-story"><b>${esc50(s.profiles?.display_name||s.profiles?.username||'حالة')}</b><div class="muted">حالة مخفية</div></div>`).join('')||'<div class="v50-lock-note">لا توجد حالات مخفية حاليًا.</div>'}</div></div>`;
+    box.querySelectorAll('[data-cid]').forEach(b=>b.onclick=async()=>{
+      const c=rows.find(x=>x.id===b.dataset.cid);if(!c)return;
+      const other=c.user1_id===uid()?c.user2_id:c.user1_id;const {data:u}=await sb.from('profiles').select('*').eq('id',other).single();
+      activeChat={conversation:c,user:u};window.activeChat=activeChat;q('chatTitle').textContent=u?.display_name||'محادثة';if(typeof setChatAvatar==='function')setChatAvatar(u);q('v50LockedPage')?.classList.remove('active');q('chatModal')?.classList.remove('hidden');await window.loadMessages?.();await markRead?.();
+    });
+  }
+  async function openVaultGate(){
+    addPage();
+    const pin=prompt('🔐 اكتب كلمة مرور الدردشات المقفلة');
+    if(pin===null)return;
+    if(!/^\d{4,8}$/.test(pin))return toast('اكتب رمزًا من 4 إلى 8 أرقام');
+    const h=await sha50(pin);const id=uid();if(!id)return;
+    const r=await sb.from('conversation_settings').select('conversation_id').eq('user_id',id).eq('locked',true).eq('deleted',false).eq('pin_hash',h).limit(1);
+    if(r.error)return toast('تعذر فتح الدردشات المقفلة');
+    if(!(r.data||[]).length)return toast('رمز الدردشات المقفلة غير صحيح');
+    go('v50LockedPage');await renderVault();
+  }
+  window.openLockedChatsVault50=openVaultGate;
+  window.renderLockedChatsVault50=renderVault;
+  function patchNotifications(){
+    const original=window.notifyIncomingMessage;
+    if(typeof original!=='function'||original.__v50Locked)return;
+    const fn=async function(m){
+      if(m?.receiver_id===uid()&&m?.sender_id!==uid()){
+        try{
+          const s=await sb.from('conversation_settings').select('locked').eq('user_id',uid()).eq('conversation_id',m.conversation_id).maybeSingle();
+          if(s.data?.locked){
+            const lockedText='رسالة مغلقة 🔒';
+            if(typeof notificationsEnabled==='function'&&!notificationsEnabled())return;
+            try{await sb.from('messages').update({delivered_at:new Date().toISOString()}).eq('id',m.id).eq('receiver_id',uid())}catch(_){ }
+            try{toast(`🔒 ${lockedText}`)}catch(_){ }
+            if('Notification' in window&&Notification.permission==='granted')try{
+              const {data:u}=await sb.from('profiles').select('display_name').eq('id',m.sender_id).maybeSingle();
+              new Notification(u?.display_name||'ComboApp',{body:lockedText,icon:'logo.png'});
+            }catch(_){ }
+            return;
+          }
+        }catch(_){ }
+      }
+      return original(m);
+    };
+    fn.__v50Locked=true;window.notifyIncomingMessage=fn;
+  }
+  function boot(){addQuick();addPage();setTimeout(patchNotifications,250);setTimeout(patchNotifications,1200)}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  setInterval(()=>{addQuick();addPage();patchNotifications()},1800);
+})();
